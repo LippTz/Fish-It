@@ -1,18 +1,22 @@
 --====================================
--- LOAD RAYFIELD
+-- LOAD WINDUI
 --====================================
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
-local Window = Rayfield:CreateWindow({
-    Name = "Blatant Script",
-    LoadingTitle = "Loading Blatant...",
-    LoadingSubtitle = "by Alif",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "BlatantConfigs",
-        FileName = "Config"
-    },
-    Discord = { Enabled = false },
+local Window = WindUI:CreateWindow({
+    Title = "Blatant Script",
+    Icon = "door-open",
+    Author = "by Alif",
+    Folder = "BlatantScript",
+    Size = UDim2.fromOffset(580, 460),
+    MinSize = Vector2.new(560, 350),
+    MaxSize = Vector2.new(850, 560),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 200,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
     KeySystem = false
 })
 
@@ -27,28 +31,22 @@ local LocalPlayer = Players.LocalPlayer
 
 local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
 
---====================================
 -- REMOTES
---====================================
 local RF_Charge   = Net:WaitForChild("RF/ChargeFishingRod")
 local RF_Request  = Net:WaitForChild("RF/RequestFishingMinigameStarted")
 local RF_Cancel   = Net:WaitForChild("RF/CancelFishingInputs")
 local RE_Complete = Net:WaitForChild("RE/FishingCompleted")
 local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
 
---====================================
 -- STATE
---====================================
 local running = false
-local CompleteDelay = 2
-local CancelDelay = 2
+local CompleteDelay = 1.33
+local CancelDelay = 0.32
 local lastStep123 = 0
 local lastStep4 = 0
 local phase = "STEP123"
 
---====================================
 -- FORCE FUNCTIONS
---====================================
 local function ForceStep123()
     task.spawn(function()
         pcall(function()
@@ -75,31 +73,25 @@ local function ForceCancel()
     end)
 end
 
---====================================
 -- LOOP BLATANT
---====================================
 task.spawn(function()
     while true do
-        task.wait(0.03)
+        task.wait(0.001)
         if not running then continue end
         local now = os.clock()
-
         if phase == "STEP123" then
             ForceStep123()
             lastStep123 = now
             phase = "WAIT_COMPLETE"
         end
-
         if phase == "WAIT_COMPLETE" and (now - lastStep123) >= CompleteDelay then
             phase = "STEP4"
         end
-
         if phase == "STEP4" then
             ForceStep4()
             lastStep4 = now
             phase = "WAIT_CANCEL"
         end
-
         if phase == "WAIT_CANCEL" and (now - lastStep4) >= CancelDelay then
             phase = "STEP123"
         end
@@ -109,40 +101,46 @@ end)
 --====================================
 -- TAB: BLATANT
 --====================================
-local BlatantTab = Window:CreateTab("Blatant")
+local BlatantTab = Window:Tab({Title = "Blatant", Icon = "fish"})
 
-BlatantTab:CreateToggle({
-    Name = "Blatant On/Off",
-    CurrentValue = false,
-    Flag = "BlatantToggle",
-    Callback = function(value)
-        running = value
-        if not value then ForceCancel() end
+-- Toggle On/Off
+BlatantTab:Toggle({
+    Title = "Blatant On/Off",
+    Desc = "Enable/Disable blatant fishing",
+    Value = false,
+    Callback = function(state)
+        running = state
+        if not state then ForceCancel() end
     end
 })
 
-BlatantTab:CreateInput({
-    Name = "Complete Delay",
-    PlaceholderText = "Seconds",
-    RemoveTextAfterFocusLost = false,
+-- Input Complete Delay
+BlatantTab:Input({
+    Title = "Complete Delay",
+    Desc = "Delay in seconds for STEP123 -> STEP4",
+    Value = tostring(CompleteDelay),
+    Placeholder = "Seconds",
     Callback = function(text)
         local num = tonumber(text)
         if num then CompleteDelay = math.max(0,num) end
     end
 })
 
-BlatantTab:CreateInput({
-    Name = "Cancel Delay",
-    PlaceholderText = "Seconds",
-    RemoveTextAfterFocusLost = false,
+-- Input Cancel Delay
+BlatantTab:Input({
+    Title = "Cancel Delay",
+    Desc = "Delay in seconds for STEP4 -> STEP123",
+    Value = tostring(CancelDelay),
+    Placeholder = "Seconds",
     Callback = function(text)
         local num = tonumber(text)
         if num then CancelDelay = math.max(0,num) end
     end
 })
 
-BlatantTab:CreateButton({
-    Name = "Sell All",
+-- Button Sell All
+BlatantTab:Button({
+    Title = "Sell All",
     Callback = function()
         pcall(function()
             RF_SellAll:InvokeServer()
@@ -153,9 +151,8 @@ BlatantTab:CreateButton({
 --====================================
 -- TAB: TELEPORT
 --====================================
-local TeleportTab = Window:CreateTab("Teleport")
+local TeleportTab = Window:Tab({Title = "Teleport", Icon = "map"})
 
--- Daftar lokasi teleport
 local teleportLocations = {
     ["Fisherman Island"] = CFrame.new(34, 26, 2776),
     ["Jungle"] = CFrame.new(1483, 11, -300),
@@ -171,27 +168,26 @@ local teleportLocations = {
     ["Tropical"] = CFrame.new(-2093, 6, 3699),
 }
 
--- Pilihan teleport default
 local selectedTeleport = "Fisherman Island"
 
--- Dropdown untuk memilih lokasi
-TeleportTab:CreateDropdown({
-    Name = "Select Location",
-    Options = {
-        "Fisherman Island","Jungle","Ancient Ruin","Crater Island",
-        "Christmas Island","Christmas Cafe","Kohana","Volcano",
-        "Esetoric Depth","Sisyphus Statue","Treasure","Tropical"
-    },
-    CurrentOption = selectedTeleport,
-    Flag = "TeleportDrop",
+-- Dropdown Lokasi
+TeleportTab:Dropdown({
+    Title = "Select Location",
+    Desc = "Choose a location to teleport",
+    Values = (function()
+        local t = {}
+        for k,_ in pairs(teleportLocations) do table.insert(t,k) end
+        return t
+    end)(),
+    Value = selectedTeleport,
     Callback = function(option)
         selectedTeleport = option
     end
 })
 
--- Tombol teleport
-TeleportTab:CreateButton({
-    Name = "Teleport",
+-- Button Teleport
+TeleportTab:Button({
+    Title = "Teleport",
     Callback = function()
         local targetCFrame = teleportLocations[selectedTeleport]
         if targetCFrame and LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
@@ -203,10 +199,11 @@ TeleportTab:CreateButton({
 --====================================
 -- TAB: MISC
 --====================================
-local MiscTab = Window:CreateTab("Misc")
+local MiscTab = Window:Tab({Title = "Misc", Icon = "settings"})
 
-MiscTab:CreateButton({
-    Name = "Boost FPS (Aggressive)",
+-- Boost FPS
+MiscTab:Button({
+    Title = "Boost FPS (Aggressive)",
     Callback = function()
         for _, effect in pairs(Lighting:GetChildren()) do
             if effect:IsA("PostEffect") then effect.Enabled = false end
@@ -232,40 +229,35 @@ MiscTab:CreateButton({
             Workspace.Terrain.WaterReflectance = 0
             Workspace.Terrain.WaterTransparency = 0
         end
-        print("âš¡ Aggressive FPS Boost Applied!")
+        print(" Aggressive FPS Boost Applied!")
     end
 })
 
--- Toggle Hide Notifications
-MiscTab:CreateToggle({
-    Name = "Hide Notifications",
-    CurrentValue = false,
-    Flag = "HideNotif",
-    Callback = function(value)
+-- Hide Notifications
+MiscTab:Toggle({
+    Title = "Hide Notifications",
+    Desc = "Hide the small notification display",
+    Value = false,
+    Callback = function(state)
         local notif = LocalPlayer.PlayerGui:FindFirstChild("Small Notification")
         if notif and notif:FindFirstChild("Display") then
-            notif.Display.Visible = not value
+            notif.Display.Visible = not state
         end
     end
 })
 
--- Toggle No Fishing Animations
-MiscTab:CreateToggle({
-    Name = "No Fishing Animations",
-    CurrentValue = false,
-    Flag = "NoFishingAnim",
-    Callback = function(value)
-        -- Matikan semua AnimationTracks dari Rod/Character
+-- No Fishing Animations
+MiscTab:Toggle({
+    Title = "No Fishing Animations",
+    Desc = "Stop fishing animations",
+    Value = false,
+    Callback = function(state)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             for _, anim in pairs(LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
-                if value then
-                    anim:Stop()
-                else
-                    anim:Play()
-                end
+                if state then anim:Stop() else anim:Play() end
             end
         end
     end
 })
 
-print("ðŸ”¥ Blatant Script Loaded with Rayfield UI + Teleport")
+print(" Blatant Script Loaded with WindUI!")
