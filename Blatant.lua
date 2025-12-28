@@ -492,6 +492,7 @@ end)
 --====================================
 -- TAB: MISC
 --====================================
+
 local MiscTab = Window:Tab({
     Title = "Misc",
     Icon = "settings"
@@ -503,15 +504,66 @@ local MiscSection = MiscTab:Section({
 })
 
 MiscSection:Button({
-    Title = "Boost FPS",
+    Title = "Boost FPS (Max)",
     Callback = function()
+        local Lighting = game:GetService("Lighting")
+        
+        -- MATIKAN SHADOW & PANTULAN
         Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
+        Lighting.EnvironmentDiffuseScale = 0
+        Lighting.EnvironmentSpecularScale = 0
+        Lighting.ShadowSoftness = 0
+        Lighting.Brightness = 1
+
+        -- KABUT JEBLOCK (SUPER TEBAL)
+        Lighting.FogStart = 0
+        Lighting.FogEnd = 50
+        Lighting.FogColor = Color3.fromRGB(60, 60, 60)
+
+        -- NONAKTIF POST EFFECT
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("PostEffect") then
                 v.Enabled = false
             end
         end
+
+        -- HAPUS TEXTURE / DECAL / PARTICLE
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Texture") or obj:IsA("Decal") then
+                obj.Transparency = 1
+            elseif obj:IsA("MeshPart") then
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Reflectance = 0
+            elseif obj:IsA("Part") or obj:IsA("UnionOperation") then
+                obj.Material = Enum.Material.SmoothPlastic
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                obj.Enabled = false
+            elseif obj:IsA("SurfaceAppearance") then
+                obj:Destroy()
+            end
+        end
+
+        -- NONAKTIF RUMPUT & AIR
+        if workspace:FindFirstChildOfClass("Terrain") then
+            local Terrain = workspace.Terrain
+            Terrain:SetMaterialColor(Enum.Material.Grass, Color3.new(0,0,0))
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 1
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+        end
+        
+        -- BOOST CAMERA FOV (opsional)
+        task.spawn(function()
+            for i = 1, 60 do
+                if workspace.CurrentCamera then
+                    workspace.CurrentCamera.FieldOfView = 80
+                end
+                task.wait()
+            end
+        end)
+
+        print("BOOST FPS MAX ACTIVATED!")
     end
 })
 
@@ -522,6 +574,94 @@ MiscSection:Button({
         if f then f:Destroy() end
     end
 })
+
+MiscTab:Divider()
+
+--====================================
+-- HUD FPS + PING
+--====================================
+local HUD_Enabled = false
+local HUDGui, HUDLabel
+
+local HUDSection = MiscTab:Section({
+    Title = "HUD Monitor",
+    Opened = true
+})
+
+HUDSection:Toggle({
+    Title = "Show FPS & Ping HUD",
+    Value = false,
+    Callback = function(v)
+        HUD_Enabled = v
+
+        if v then
+            -- Create HUD if missing
+            if not HUDGui then
+                HUDGui = Instance.new("ScreenGui")
+                HUDGui.Name = "HUD_FPSPING"
+                HUDGui.ResetOnSpawn = false
+                HUDGui.Parent = game:GetService("CoreGui")
+
+                HUDLabel = Instance.new("TextLabel")
+                HUDLabel.Name = "Display"
+                HUDLabel.Parent = HUDGui
+                HUDLabel.Size = UDim2.new(0, 200, 0, 38)
+                HUDLabel.Position = UDim2.new(1, -200, 0, 8)
+                HUDLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                HUDLabel.BackgroundTransparency = 0.45
+                HUDLabel.BorderSizePixel = 0
+                HUDLabel.TextColor3 = Color3.fromRGB(0,255,125)
+                HUDLabel.Font = Enum.Font.Code
+                HUDLabel.TextSize = 15
+                HUDLabel.Text = "FPS: --  |  Ping: --"
+
+                -- Make draggable
+                local UserInput = game:GetService("UserInputService")
+                local dragging, dragStart, startPos
+
+                HUDLabel.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = true
+                        dragStart = input.Position
+                        startPos = HUDLabel.Position
+                    end
+                end)
+
+                UserInput.InputChanged:Connect(function(input)
+                    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        local delta = input.Position - dragStart
+                        HUDLabel.Position = UDim2.new(
+                            startPos.X.Scale, startPos.X.Offset + delta.X,
+                            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                        )
+                    end
+                end)
+
+                HUDLabel.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = false
+                    end
+                end)
+            end
+            HUDGui.Enabled = true
+        else
+            if HUDGui then HUDGui.Enabled = false end
+        end
+    end
+})
+
+-- LOOP UPDATE FPS & PING
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if HUD_Enabled and HUDGui and HUDLabel then
+            local stats = game:GetService("Stats")
+            local fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
+            local ping = stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+            HUDLabel.Text = ("FPS: %s  |  Ping: %sms"):format(fps, math.floor(ping))
+        end
+    end
+end)
 
 --====================================
 -- NO ANIMATIONS (STRONG VERSION)
