@@ -6,9 +6,9 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title = "Blatant Script",
+    Title = "KREINXY|First It",
     Icon = "door-open",
-    Author = "by Alif",
+    Author = "by KREINXY",
     Folder = "BlatantScript",
     Size = UDim2.fromOffset(600, 480),
     MinSize = Vector2.new(560, 360),
@@ -88,7 +88,7 @@ local function ForceStep123()
         pcall(function()
             RF_Cancel:InvokeServer()
             RF_Charge:InvokeServer({ [1] = os.clock() })
-            RF_Request:InvokeServer(1, 0, os.clock())
+            RF_Request:InvokeServer(1, 0.222, 0.222)
         end)
     end)
 end
@@ -208,6 +208,8 @@ BlatantUtil:Button({
     end
 })
 
+BlatantTab:Divider()
+
 --====================================
 -- TAB: TELEPORT
 --====================================
@@ -317,6 +319,8 @@ PlayerSection:Button({
         end
     end
 })
+
+TeleportTab:Divider()
 
 --====================================
 -- EVENT TELEPORT (ONE-TIME SYSTEM)
@@ -440,6 +444,8 @@ task.spawn(function()
     end
 end)
 
+TeleportTab:Divider()
+
 --====================================
 -- TAB: SHOP
 --====================================
@@ -489,10 +495,11 @@ task.spawn(function()
     end
 end)
 
+ShopTab:Divider()
+
 --====================================
 -- TAB: MISC
 --====================================
-
 local MiscTab = Window:Tab({
     Title = "Misc",
     Icon = "settings"
@@ -518,7 +525,7 @@ MiscSection:Button({
         -- KABUT JEBLOCK (SUPER TEBAL)
         Lighting.FogStart = 0
         Lighting.FogEnd = 50
-        Lighting.FogColor = Color3.fromRGB(60, 60, 60)
+        Lighting.FogColor = Color3.fromRGB(255, 5, 5)
 
         -- NONAKTIF POST EFFECT
         for _, v in ipairs(Lighting:GetChildren()) do
@@ -557,7 +564,7 @@ MiscSection:Button({
         task.spawn(function()
             for i = 1, 60 do
                 if workspace.CurrentCamera then
-                    workspace.CurrentCamera.FieldOfView = 80
+                    workspace.CurrentCamera.MaxZoom = 99999
                 end
                 task.wait()
             end
@@ -574,94 +581,6 @@ MiscSection:Button({
         if f then f:Destroy() end
     end
 })
-
-MiscTab:Divider()
-
---====================================
--- HUD FPS + PING
---====================================
-local HUD_Enabled = false
-local HUDGui, HUDLabel
-
-local HUDSection = MiscTab:Section({
-    Title = "HUD Monitor",
-    Opened = true
-})
-
-HUDSection:Toggle({
-    Title = "Show FPS & Ping HUD",
-    Value = false,
-    Callback = function(v)
-        HUD_Enabled = v
-
-        if v then
-            -- Create HUD if missing
-            if not HUDGui then
-                HUDGui = Instance.new("ScreenGui")
-                HUDGui.Name = "HUD_FPSPING"
-                HUDGui.ResetOnSpawn = false
-                HUDGui.Parent = game:GetService("CoreGui")
-
-                HUDLabel = Instance.new("TextLabel")
-                HUDLabel.Name = "Display"
-                HUDLabel.Parent = HUDGui
-                HUDLabel.Size = UDim2.new(0, 200, 0, 38)
-                HUDLabel.Position = UDim2.new(1, -200, 0, 8)
-                HUDLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-                HUDLabel.BackgroundTransparency = 0.45
-                HUDLabel.BorderSizePixel = 0
-                HUDLabel.TextColor3 = Color3.fromRGB(0,255,125)
-                HUDLabel.Font = Enum.Font.Code
-                HUDLabel.TextSize = 15
-                HUDLabel.Text = "FPS: --  |  Ping: --"
-
-                -- Make draggable
-                local UserInput = game:GetService("UserInputService")
-                local dragging, dragStart, startPos
-
-                HUDLabel.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = true
-                        dragStart = input.Position
-                        startPos = HUDLabel.Position
-                    end
-                end)
-
-                UserInput.InputChanged:Connect(function(input)
-                    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                        local delta = input.Position - dragStart
-                        HUDLabel.Position = UDim2.new(
-                            startPos.X.Scale, startPos.X.Offset + delta.X,
-                            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-                        )
-                    end
-                end)
-
-                HUDLabel.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = false
-                    end
-                end)
-            end
-            HUDGui.Enabled = true
-        else
-            if HUDGui then HUDGui.Enabled = false end
-        end
-    end
-})
-
--- LOOP UPDATE FPS & PING
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if HUD_Enabled and HUDGui and HUDLabel then
-            local stats = game:GetService("Stats")
-            local fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
-            local ping = stats.Network.ServerStatsItem["Data Ping"]:GetValue()
-            HUDLabel.Text = ("FPS: %s  |  Ping: %sms"):format(fps, math.floor(ping))
-        end
-    end
-end)
 
 --====================================
 -- NO ANIMATIONS (STRONG VERSION)
@@ -752,4 +671,169 @@ PlayerGui.ChildAdded:Connect(function(child)
     end
 end)
 
-print("✅ Blatant Script Loaded Successfully")
+MiscTab:Divider()
+
+--====================================
+-- HUD FPS + PING
+--====================================
+local HUD_Enabled = false
+local HUDGui, HUDLabel
+
+local HUDSection = MiscTab:Section({
+    Title = "HUD Monitor",
+    Opened = true
+})
+
+HUDSection:Toggle({
+    Title = "Show FPS & Ping HUD",
+    Value = false,
+    Callback = function(v)
+        HUD_Enabled = v
+
+        if v then
+            -- Create HUD if missing
+            if not HUDGui then
+                HUDGui = Instance.new("ScreenGui")
+                HUDGui.Name = "HUD_FPSPING"
+                HUDGui.ResetOnSpawn = false
+                HUDGui.Parent = game:GetService("CoreGui")
+
+                HUDLabel = Instance.new("TextLabel")
+                HUDLabel.Name = "Display"
+                HUDLabel.Parent = HUDGui
+                HUDLabel.Size = UDim2.new(0, 200, 0, 38)
+                HUDLabel.Position = UDim2.new(1, -200, 0, 8)
+                HUDLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                HUDLabel.BackgroundTransparency = 0.45
+                HUDLabel.BorderSizePixel = 0
+                HUDLabel.TextColor3 = Color3.fromRGB(0,255,125)
+                HUDLabel.Font = Enum.Font.Code
+                HUDLabel.TextSize = 15
+                HUDLabel.Text = "FPS: --  |  Ping: --"
+
+                -- Make draggable
+                local UserInput = game:GetService("UserInputService")
+                local dragging, dragStart, startPos
+
+                HUDLabel.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = true
+                        dragStart = input.Position
+                        startPos = HUDLabel.Position
+                    end
+                end)
+
+                UserInput.InputChanged:Connect(function(input)
+                    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        local delta = input.Position - dragStart
+                        HUDLabel.Position = UDim2.new(
+                            startPos.X.Scale, startPos.X.Offset + delta.X,
+                            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                        )
+                    end
+                end)
+
+                HUDLabel.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = false
+                    end
+                end)
+            end
+            HUDGui.Enabled = true
+        else
+            if HUDGui then HUDGui.Enabled = false end
+        end
+    end
+})
+
+-- LOOP UPDATE FPS & PING
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if HUD_Enabled and HUDGui and HUDLabel then
+            local stats = game:GetService("Stats")
+            local fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
+            local ping = stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+            HUDLabel.Text = ("FPS: %s  |  Ping: %sms"):format(fps, math.floor(ping))
+        end
+    end
+end)
+
+MiscTab:Divider()
+
+--====================================
+-- ANTI AFK
+--====================================
+local AntiAFK_Enabled = false
+
+local AFKSection = MiscTab:Section({
+    Title = "Anti-AFK",
+    Opened = true
+})
+
+AFKSection:Toggle({
+    Title = "Enable Anti-AFK",
+    Value = false,
+    Callback = function(v)
+        AntiAFK_Enabled = v
+        if v then
+            local vu = game:GetService("VirtualUser")
+            game:GetService("Players").LocalPlayer.Idled:Connect(function()
+                if AntiAFK_Enabled then
+                    vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                    task.wait(0.1)
+                    vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                end
+            end)
+        end
+    end
+})
+
+MiscTab:Divider()
+
+
+--Table Atas kepala
+local targetChar = workspace.Characters:FindFirstChild("SSASSAA11")
+if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+    local hrp = targetChar.HumanoidRootPart
+    local titleContainer = hrp:FindFirstChild("Overhead") and hrp.Overhead:FindFirstChild("TitleContainer")
+    
+    if titleContainer then
+        titleContainer.Visible = true
+        
+        local label = titleContainer:FindFirstChild("Label")
+        if label and label:IsA("TextLabel") then
+            label.Text = "KREINXY"
+            label.Size = UDim2.new(3, 0, 3, 0)
+
+            local gradient = label:FindFirstChildOfClass("UIGradient")
+            if not gradient then
+                gradient = Instance.new("UIGradient")
+                gradient.Parent = label
+            end
+
+            gradient.Rotation = 45
+
+            -- LOOP RGB
+            task.spawn(function()
+                local hue = 0
+                while label.Parent do
+                    hue = (hue + 1) % 360
+                    local function HSV(h, s, v)
+                        return Color3.fromHSV(h/360, s, v)
+                    end
+
+                    gradient.Color = ColorSequence.new{
+                        ColorSequenceKeypoint.new(0, HSV((hue) % 360, 1, 1)),
+                        ColorSequenceKeypoint.new(0.2, HSV((hue + 60) % 360, 1, 1)),
+                        ColorSequenceKeypoint.new(0.4, HSV((hue + 120) % 360, 1, 1)),
+                        ColorSequenceKeypoint.new(0.6, HSV((hue + 180) % 360, 1, 1)),
+                        ColorSequenceKeypoint.new(0.8, HSV((hue + 240) % 360, 1, 1)),
+                        ColorSequenceKeypoint.new(1, HSV((hue + 300) % 360, 1, 1))
+                    }
+                    task.wait(0.01) -- update tiap 0.05 detik
+                end
+            end)
+        end
+    end
+end
