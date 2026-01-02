@@ -88,7 +88,7 @@ local function ForceStep123()
         pcall(function()
             RF_Cancel:InvokeServer()
             RF_Charge:InvokeServer({ [1] = os.clock() })
-            RF_Request:InvokeServer(1, 0.222, 0.222)
+            RF_Request:InvokeServer(1, os.clock(), os.clock())
         end)
     end)
 end
@@ -120,7 +120,7 @@ local function StartLoop()
 
     loopThread = task.spawn(function()
         while running do
-            task.wait(0.001)
+            task.wait(0.01)
             local now = os.clock()
 
             if (now - lastStepTime) > 3 then
@@ -749,7 +749,7 @@ HUDSection:Toggle({
 -- LOOP UPDATE FPS & PING
 task.spawn(function()
     while true do
-        task.wait(1)
+        task.wait(0.2)
         if HUD_Enabled and HUDGui and HUDLabel then
             local stats = game:GetService("Stats")
             local fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
