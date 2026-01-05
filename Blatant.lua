@@ -238,6 +238,7 @@ local Locations = {
     ["Crater Island"] = CFrame.new(1013, 23, 5079),
     ["Christmas Island"] = CFrame.new(1135, 24, 1563),
     ["Christmas Cafe"] = CFrame.new(580, -581, 8930),
+    ["Coral"] = CFrame.new(-3029, 3, 2260),
     ["Kohana"] = CFrame.new(-635, 16, 603),
     ["Volcano"] = CFrame.new(-597, 59, 106),
     ["Esetoric Depth"] = CFrame.new(3203, -1303, 1415),
@@ -314,7 +315,7 @@ PlayerSection:Button({
         local target = Players:FindFirstChild(SelectedPlayer)
         if target and target.Character and target.Character.PrimaryPart then
             LocalPlayer.Character:SetPrimaryPartCFrame(
-                target.Character.PrimaryPart.CFrame * CFrame.new(0,0,-3)
+                target.Character.PrimaryPart.CFrame * CFrame.new(0,1,0)
             )
         end
     end
