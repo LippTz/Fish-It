@@ -88,6 +88,7 @@ local function ForceStep123()
         pcall(function()
             RF_Cancel:InvokeServer()
             RF_Charge:InvokeServer({ [1] = os.clock() })
+            task.wait(0.01)        
             RF_Request:InvokeServer(-1.22555999, 0.999999999, os.clock())
         end)
     end)
@@ -122,7 +123,7 @@ local function StartLoop()
     loopThread = task.spawn(function()
         while running do
             task.wait(0.0001)
-            local now = 0.0001
+            local now = os.clock()
 
             if (now - lastStepTime) > 3 then
                 phase = "STEP123"
