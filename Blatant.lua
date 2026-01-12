@@ -74,8 +74,8 @@ local BlatantMain = BlatantTab:Section({
 -- STATE & SETTINGS
 --====================================
 local running = false
-local CompleteDelay = 0.705
-local CancelDelay = 0.346
+local CompleteDelay = 0.71
+local CancelDelay = 0.32
 local phase = "STEP123"
 local lastStepTime = 0
 local loopThread
@@ -88,7 +88,7 @@ local function ForceStep123()
         pcall(function()
             RF_Cancel:InvokeServer()
             RF_Charge:InvokeServer({ [1] = os.clock() })
-            RF_Request:InvokeServer(1, os.clock(), os.clock())
+            RF_Request:InvokeServer(-1.22555999, 0.999999999, os.clock())
         end)
     end)
 end
@@ -96,7 +96,8 @@ end
 local function ForceStep4()
     task.spawn(function()
         pcall(function()
-            RE_Complete:FireServer()            
+            RE_Complete:FireServer()
+            RE_Complete:FireServer()        
         end)
     end)
 end
@@ -120,8 +121,8 @@ local function StartLoop()
 
     loopThread = task.spawn(function()
         while running do
-            task.wait(0.01)
-            local now = os.clock()
+            task.wait(0.0001)
+            local now = 0.0001
 
             if (now - lastStepTime) > 3 then
                 phase = "STEP123"
@@ -168,6 +169,11 @@ BlatantMain:Toggle({
             StartLoop()
         else
             ForceCancel()
+            task.wait(0.5)
+            ForceCancel()
+            ForceCancel()
+            task.wait(0.5)
+            ForceCancel()    
         end
     end
 })
@@ -485,13 +491,13 @@ ShopSection:Toggle({
 })
 
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.5) do
         if not WeatherSpam then continue end
         for _, w in ipairs(SelectedWeathers) do
             pcall(function()
                 RF_Weather:InvokeServer(w)
             end)
-            task.wait(0.15)
+            task.wait(0.8)
         end
     end
 end)
@@ -521,11 +527,11 @@ MiscSection:Button({
         Lighting.EnvironmentDiffuseScale = 0
         Lighting.EnvironmentSpecularScale = 0
         Lighting.ShadowSoftness = 0
-        Lighting.Brightness = 1
+        Lighting.Brightness = 5
 
         -- KABUT JEBLOCK (SUPER TEBAL)
         Lighting.FogStart = 0
-        Lighting.FogEnd = 50
+        Lighting.FogEnd = 50000
         Lighting.FogColor = Color3.fromRGB(255, 5, 5)
 
         -- NONAKTIF POST EFFECT
@@ -750,7 +756,7 @@ HUDSection:Toggle({
 -- LOOP UPDATE FPS & PING
 task.spawn(function()
     while true do
-        task.wait(0.2)
+        task.wait(0.5)
         if HUD_Enabled and HUDGui and HUDLabel then
             local stats = game:GetService("Stats")
             local fps = math.floor(1 / game:GetService("RunService").RenderStepped:Wait())
@@ -832,7 +838,7 @@ if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
                         ColorSequenceKeypoint.new(0.8, HSV((hue + 240) % 360, 1, 1)),
                         ColorSequenceKeypoint.new(1, HSV((hue + 300) % 360, 1, 1))
                     }
-                    task.wait(0.01) -- update tiap 0.05 detik
+                    task.wait(0.02) -- update tiap 0.05 detik
                 end
             end)
         end
