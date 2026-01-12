@@ -87,7 +87,6 @@ local function ForceStep123()
     task.spawn(function()
         pcall(function()
             RF_Cancel:InvokeServer()        
-            RF_Charge:InvokeServer({ [1] = os.clock() })
             RF_Charge:InvokeServer({ [1] = os.clock() })        
             RF_Request:InvokeServer(os.clock(), os.clock(), os.clock())
         end)
@@ -162,7 +161,7 @@ end
 -- UI CONTROLS
 --====================================
 BlatantMain:Toggle({
-    Title = "Enable Blatant Fishing",
+    Title = "Blatant Fishing",
     Value = false,
     Callback = function(v)
         running = v
@@ -173,7 +172,7 @@ BlatantMain:Toggle({
             task.wait(0.5)
             ForceCancel()
             ForceCancel()
-            task.wait(0.8)
+            task.wait(1)
             ForceCancel()    
         end
     end
@@ -528,11 +527,11 @@ MiscSection:Button({
         Lighting.EnvironmentDiffuseScale = 0
         Lighting.EnvironmentSpecularScale = 0
         Lighting.ShadowSoftness = 0
-        Lighting.Brightness = 10
+        Lighting.Brightness = 5
 
         -- KABUT JEBLOCK (SUPER TEBAL)
         Lighting.FogStart = 0
-        Lighting.FogEnd = 10
+        Lighting.FogEnd = 100
         Lighting.FogColor = Color3.fromRGB(255, 5, 5)
 
         -- NONAKTIF POST EFFECT
