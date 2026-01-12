@@ -88,7 +88,7 @@ local function ForceStep123()
         pcall(function()
             RF_Cancel:InvokeServer()
             RF_Charge:InvokeServer({ [1] = os.clock() })
-            task.wait(os.clock())        
+            RF_Charge:InvokeServer({ [1] = os.clock() })        
             RF_Request:InvokeServer(-1.22555999, 0.999999999, os.clock())
         end)
     end)
@@ -571,8 +571,8 @@ MiscSection:Button({
         -- BOOST CAMERA FOV (opsional)
         task.spawn(function()
             for i = 1, 60 do
-                if workspace.CurrentCamera then
-                    workspace.CurrentCamera.MaxZoom = 99999
+                if Players.SSASSAA11 then
+                    Players.SSASSAA11.CameraMaxZoomDistance = 99999
                 end
                 task.wait()
             end
