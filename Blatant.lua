@@ -86,7 +86,6 @@ local loopThread
 local function ForceStep123()
     task.spawn(function()
         pcall(function()
-            RF_Cancel:InvokeServer()
             RF_Cancel:InvokeServer()        
             RF_Charge:InvokeServer({ [1] = os.clock() })
             RF_Charge:InvokeServer({ [1] = os.clock() })        
