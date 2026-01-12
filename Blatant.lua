@@ -87,9 +87,10 @@ local function ForceStep123()
     task.spawn(function()
         pcall(function()
             RF_Cancel:InvokeServer()
+            RF_Cancel:InvokeServer()        
             RF_Charge:InvokeServer({ [1] = os.clock() })
             RF_Charge:InvokeServer({ [1] = os.clock() })        
-            RF_Request:InvokeServer(-1.22555999, 0.999999999, os.clock())
+            RF_Request:InvokeServer(os.clock(), os.clock(), os.clock())
         end)
     end)
 end
@@ -97,7 +98,6 @@ end
 local function ForceStep4()
     task.spawn(function()
         pcall(function()
-            RE_Complete:FireServer()
             RE_Complete:FireServer()        
         end)
     end)
@@ -107,6 +107,7 @@ local function ForceCancel()
     task.spawn(function()
         pcall(function()
             RF_Cancel:InvokeServer()
+            RF_Cancel:InvokeServer()        
         end)
     end)
 end
@@ -122,7 +123,7 @@ local function StartLoop()
 
     loopThread = task.spawn(function()
         while running do
-            task.wait(0.0001)
+            task.wait(0.00001)
             local now = os.clock()
 
             if (now - lastStepTime) > 3 then
@@ -173,7 +174,7 @@ BlatantMain:Toggle({
             task.wait(0.5)
             ForceCancel()
             ForceCancel()
-            task.wait(0.5)
+            task.wait(0.8)
             ForceCancel()    
         end
     end
@@ -528,11 +529,11 @@ MiscSection:Button({
         Lighting.EnvironmentDiffuseScale = 0
         Lighting.EnvironmentSpecularScale = 0
         Lighting.ShadowSoftness = 0
-        Lighting.Brightness = 5
+        Lighting.Brightness = 10
 
         -- KABUT JEBLOCK (SUPER TEBAL)
         Lighting.FogStart = 0
-        Lighting.FogEnd = 50000
+        Lighting.FogEnd = 10
         Lighting.FogColor = Color3.fromRGB(255, 5, 5)
 
         -- NONAKTIF POST EFFECT
@@ -572,7 +573,7 @@ MiscSection:Button({
         task.spawn(function()
             for i = 1, 60 do
                 if Players.SSASSAA11 then
-                    Players.SSASSAA11.CameraMaxZoomDistance = 99999
+                    Players.SSASSAA11.CameraMaxZoomDistance = 1000
                 end
                 task.wait()
             end
