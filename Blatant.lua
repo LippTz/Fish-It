@@ -87,7 +87,8 @@ local function ForceStep123()
     task.spawn(function()
         pcall(function()
             RF_Cancel:InvokeServer()        
-            RF_Charge:InvokeServer({ [1] = os.clock() })        
+            RF_Charge:InvokeServer({ [1] = os.clock() })
+            RF_Charge:InvokeServer({ [1] = os.clock() })
             RF_Request:InvokeServer(os.clock(), os.clock(), os.clock())
         end)
     end)
@@ -104,6 +105,7 @@ end
 local function ForceCancel()
     task.spawn(function()
         pcall(function()
+            RE_Complete:FireServer()        
             RF_Cancel:InvokeServer()
             RF_Cancel:InvokeServer()        
         end)
@@ -121,7 +123,7 @@ local function StartLoop()
 
     loopThread = task.spawn(function()
         while running do
-            task.wait(0.00001)
+            task.wait(0)
             local now = os.clock()
 
             if (now - lastStepTime) > 3 then
