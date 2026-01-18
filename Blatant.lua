@@ -94,9 +94,9 @@ end
 
 local function ForceStep4()
     task.spawn(function()
-        pcall(function()
-            RF_Cancel:InvokeServer()        
-            RE_Complete:FireServer()                    
+        pcall(function()        
+            RE_Complete:FireServer()
+            RF_Cancel:InvokeServer()                    
         end)
     end)
 end
