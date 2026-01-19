@@ -115,52 +115,22 @@ local BlatantMain = BlatantTab:Section({
     Opened = true
 })
 
--- Fishing Functions
+-- ⚡ MAXIMUM SPEED - NO SAFETY
 local function ForceStep123()
-    task.spawn(function()
-        pcall(function()
-            Remotes.Cancel:InvokeServer()
-            Remotes.Charge:InvokeServer({[1] = os.clock()})
-            Remotes.Request:InvokeServer(os.clock(), os.clock(), os.clock())
-        end)
-    end)
-end
-
-local function ForceStep4()
-    task.spawn(function()
-        pcall(function()
-            Remotes.Complete:FireServer()
-            Remotes.Complete:FireServer()
-        end)
-    end)
-end
-
-local function ForceCancel()
-    task.spawn(function()
-        pcall(function()
-            Remotes.Complete:FireServer()
-            Remotes.Cancel:InvokeServer()
-            Remotes.Cancel:InvokeServer()
-        end)
-    end)
+    local t = os.clock()
+    Remotes.Cancel:FireServer()  -- Pakai Fire kalau bisa
+    Remotes.Charge:FireServer({[1] = t})
+    Remotes.Request:FireServer(t, t, t)
 end
 
 local function StartFishingLoop()
-    if State.LoopThread then
-        task.cancel(State.LoopThread)
-    end
-
     State.Phase = "INIT23"
     State.LastStepTime = os.clock()
 
     State.LoopThread = task.spawn(function()
         while State.FishingRunning do
-            task.wait(0)
+            -- ❌ Hapus task.wait() untuk max speed
             local now = os.clock()
-
-            if (now - State.LastStepTime) > 3 then
-                State.Phase = "STEP123"
-            end
 
             if State.Phase == "INIT23" or State.Phase == "STEP123" then
                 State.LastStepTime = now
@@ -174,7 +144,9 @@ local function StartFishingLoop()
                 
             elseif State.Phase == "STEP4" then
                 State.LastStepTime = now
-                ForceStep4()
+                local t = os.clock()
+                Remotes.Complete:FireServer()
+                Remotes.Complete:FireServer()
                 State.Phase = "WAIT_STOP"
                 
             elseif State.Phase == "WAIT_STOP" then
