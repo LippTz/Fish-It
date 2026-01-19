@@ -1,6 +1,6 @@
 # Fish-It
 Blatant Fish It
-#Realese
+# Realese
 loadstring(game:HttpGet("https://raw.githubusercontent.com/LippTz/Fish-It/refs/heads/main/Blatant.lua"))()
-#Tes
+# Tes
 loadstring(game:HttpGet("https://raw.githubusercontent.com/LippTz/Fish-It/refs/heads/main/Tes.lua"))()
