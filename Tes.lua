@@ -116,316 +116,349 @@ local BlatantMain = BlatantTab:Section({
 })
 
 -- ============================================
--- OPTIMIZED BLATANT FISHING SYSTEM
+-- SPAM FISHING SYSTEM (MULTI-ROD FORCE)
 -- ============================================
 
--- Enhanced State dengan Stats Tracking
-local FishingStats = {
-    Success = 0,
-    Fail = 0,
-    TotalAttempts = 0,
-    LastAdjust = os.clock(),
-    CurrentSpeed = "Normal"
-}
+-- State untuk Multi-Threading
+local ActiveThreads = {}
+local SpamRate = 3  -- Berapa banyak rod aktif bersamaan
 
--- Fishing Functions (Optimized)
-local function OptimizedForceStep123()
-    local timestamp = os.clock()
-    local success, errorMsg = pcall(function()
-        Remotes.Cancel:InvokeServer()
-        Remotes.Charge:InvokeServer({[1] = timestamp})
-        Remotes.Request:InvokeServer(timestamp, timestamp, timestamp)
-    end)
-    
-    FishingStats.TotalAttempts = FishingStats.TotalAttempts + 1
-    
-    if success then
-        FishingStats.Success = FishingStats.Success + 1
-    else
-        FishingStats.Fail = FishingStats.Fail + 1
-        warn("⚠️ Step123 failed:", errorMsg)
-    end
-    
-    return success
-end
-
-local function OptimizedForceStep4()
-    local success = pcall(function()
-        Remotes.Complete:FireServer()
-        Remotes.Complete:FireServer()
-    end)
-    
-    if not success then
-        warn("⚠️ Step4 failed")
-    end
-    
-    return success
-end
-
-local function OptimizedForceCancel()
-    pcall(function()
-        Remotes.Complete:FireServer()
-        Remotes.Cancel:InvokeServer()
-        Remotes.Cancel:InvokeServer()
+-- Original Force Functions (Aggressive Mode)
+local function ForceStep123()
+    task.spawn(function()
+        pcall(function()
+            Remotes.Cancel:InvokeServer()
+            Remotes.Charge:InvokeServer({[1] = os.clock()})
+            Remotes.Request:InvokeServer(os.clock(), os.clock(), os.clock())
+        end)
     end)
 end
 
--- Auto Adaptive Delay System
-local function AutoAdjustDelay()
-    local now = os.clock()
-    
-    -- Adjust setiap 15 detik
-    if (now - FishingStats.LastAdjust) < 15 then
-        return
-    end
-    
-    local total = FishingStats.Success + FishingStats.Fail
-    if total < 5 then return end  -- Butuh minimal 5 attempts untuk adjust
-    
-    local successRate = FishingStats.Success / total
-    
-    if successRate < 0.6 then
-        -- Success rate rendah (<60%) - SLOW DOWN
-        State.CompleteDelay = math.min(1.2, State.CompleteDelay + 0.08)
-        State.CancelDelay = math.min(0.6, State.CancelDelay + 0.04)
-        FishingStats.CurrentSpeed = "Slow"
-        print("🐌 Low success rate! Speed: SLOW | Delay +")
-        
-    elseif successRate < 0.8 then
-        -- Success rate medium (60-80%) - MAINTAIN
-        FishingStats.CurrentSpeed = "Normal"
-        print("⚡ Medium success rate. Speed: NORMAL")
-        
-    elseif successRate >= 0.9 then
-        -- Success rate tinggi (>90%) - SPEED UP
-        State.CompleteDelay = math.max(0.25, State.CompleteDelay - 0.05)
-        State.CancelDelay = math.max(0.08, State.CancelDelay - 0.02)
-        FishingStats.CurrentSpeed = "Fast"
-        print("🚀 High success rate! Speed: FAST | Delay -")
-    end
-    
-    -- Reset stats untuk next cycle
-    FishingStats.LastAdjust = now
-    FishingStats.Success = 0
-    FishingStats.Fail = 0
-    
-    -- Print current delays
-    print(string.format("📊 Complete: %.2fs | Cancel: %.2fs", 
-        State.CompleteDelay, State.CancelDelay))
+local function ForceStep4()
+    task.spawn(function()
+        pcall(function()
+            Remotes.Complete:FireServer()
+            Remotes.Complete:FireServer()
+        end)
+    end)
 end
 
--- Smart Retry System
-local function SmartRetry(func, maxRetries)
-    maxRetries = maxRetries or 2
-    
-    for attempt = 1, maxRetries do
-        if func() then
-            return true
-        end
-        
-        if attempt < maxRetries then
-            task.wait(0.05)  -- Short retry delay
+local function ForceCancel()
+    task.spawn(function()
+        pcall(function()
+            Remotes.Complete:FireServer()
+            Remotes.Cancel:InvokeServer()
+            Remotes.Cancel:InvokeServer()
+        end)
+    end)
+end
+
+-- ============================================
+-- SPAM LOOP (MULTIPLE RODS SIMULTANEOUSLY)
+-- ============================================
+local function StartSpamFishingLoop()
+    -- Cancel existing threads
+    for _, thread in pairs(ActiveThreads) do
+        if thread then
+            task.cancel(thread)
         end
     end
-    
-    return false
-end
+    ActiveThreads = {}
 
--- Optimized Main Loop
-local function StartOptimizedLoop()
-    if State.LoopThread then
-        task.cancel(State.LoopThread)
-    end
+    print(string.format("🚀 Starting SPAM MODE with %d concurrent rods!", SpamRate))
 
-    State.Phase = "INIT23"
-    State.LastStepTime = os.clock()
-    
-    -- Reset stats
-    FishingStats.Success = 0
-    FishingStats.Fail = 0
-    FishingStats.TotalAttempts = 0
-    FishingStats.LastAdjust = os.clock()
-
-    print("✅ Optimized Fishing Started!")
-
-    State.LoopThread = task.spawn(function()
-        while State.FishingRunning do
-            task.wait(0.02)  -- Minimal safe delay
-            local now = os.clock()
+    -- Spawn multiple fishing threads
+    for i = 1, SpamRate do
+        local thread = task.spawn(function()
+            local phase = "STEP123"
+            local lastStepTime = os.clock()
             
-            -- Auto adjust delays based on success rate
-            AutoAdjustDelay()
+            -- Staggered start untuk avoid detection
+            task.wait(i * 0.1)
+            
+            while State.FishingRunning do
+                task.wait(0)  -- Maximum speed
+                local now = os.clock()
 
-            -- Timeout protection (reset if stuck)
-            if (now - State.LastStepTime) > 8 then
-                warn("⏰ Timeout detected! Resetting phase...")
-                State.Phase = "STEP123"
-                State.LastStepTime = now
-            end
-
-            -- PHASE: INIT23 atau STEP123 (Start Fishing)
-            if State.Phase == "INIT23" or State.Phase == "STEP123" then
-                State.LastStepTime = now
-                
-                -- Retry system untuk handle failures
-                if SmartRetry(OptimizedForceStep123, 2) then
-                    State.Phase = "WAIT_COMPLETE"
-                else
-                    -- Kalau masih gagal, wait sebentar
-                    task.wait(0.2)
+                -- Timeout protection
+                if (now - lastStepTime) > 3 then
+                    phase = "STEP123"
                 end
 
-            -- PHASE: WAIT_COMPLETE (Tunggu Complete Delay)
-            elseif State.Phase == "WAIT_COMPLETE" then
-                if (now - State.LastStepTime) >= State.CompleteDelay then
-                    State.Phase = "STEP4"
-                end
+                if phase == "STEP123" then
+                    lastStepTime = now
+                    ForceStep123()
+                    phase = "WAIT_COMPLETE"
 
-            -- PHASE: STEP4 (Complete Fishing)
-            elseif State.Phase == "STEP4" then
-                State.LastStepTime = now
-                OptimizedForceStep4()
-                State.Phase = "WAIT_STOP"
+                elseif phase == "WAIT_COMPLETE" then
+                    if (now - lastStepTime) >= State.CompleteDelay then
+                        phase = "STEP4"
+                    end
 
-            -- PHASE: WAIT_STOP (Tunggu Cancel Delay)
-            elseif State.Phase == "WAIT_STOP" then
-                if (now - State.LastStepTime) >= State.CancelDelay then
-                    State.Phase = "STEP123"
+                elseif phase == "STEP4" then
+                    lastStepTime = now
+                    ForceStep4()
+                    phase = "WAIT_STOP"
+
+                elseif phase == "WAIT_STOP" then
+                    if (now - lastStepTime) >= State.CancelDelay then
+                        phase = "STEP123"
+                    end
                 end
             end
-        end
+        end)
         
-        print("🛑 Optimized Fishing Stopped!")
+        ActiveThreads[i] = thread
+        print(string.format("✅ Rod #%d activated", i))
+    end
+end
+
+-- ============================================
+-- ULTRA SPAM MODE (EXTREME)
+-- ============================================
+local function StartUltraSpamLoop()
+    -- Cancel existing
+    for _, thread in pairs(ActiveThreads) do
+        if thread then task.cancel(thread) end
+    end
+    ActiveThreads = {}
+
+    print("⚡ ULTRA SPAM MODE ACTIVATED - MAXIMUM AGGRESSION!")
+
+    -- Main spam thread
+    ActiveThreads[1] = task.spawn(function()
+        while State.FishingRunning do
+            -- Fire multiple sequences rapidly
+            for burst = 1, SpamRate do
+                task.spawn(function()
+                    pcall(function()
+                        local t = os.clock()
+                        
+                        -- Step 1-3 (Spam)
+                        Remotes.Cancel:InvokeServer()
+                        Remotes.Charge:InvokeServer({[1] = t})
+                        Remotes.Request:InvokeServer(t, t, t)
+                        
+                        task.wait(State.CompleteDelay)
+                        
+                        -- Step 4 (Complete)
+                        Remotes.Complete:FireServer()
+                        Remotes.Complete:FireServer()
+                        
+                        task.wait(State.CancelDelay)
+                    end)
+                end)
+                
+                task.wait(0.05)  -- Minimal gap between bursts
+            end
+            
+            task.wait(0.1)  -- Small cooldown between spam cycles
+        end
     end)
 end
 
 -- ============================================
--- BLATANT UI CONTROLS (UPDATED)
+-- RAPID FIRE MODE (CONTINUOUS SPAM)
+-- ============================================
+local function StartRapidFireLoop()
+    -- Cancel existing
+    for _, thread in pairs(ActiveThreads) do
+        if thread then task.cancel(thread) end
+    end
+    ActiveThreads = {}
+
+    print("🔥 RAPID FIRE MODE - NON-STOP SPAM!")
+
+    ActiveThreads[1] = task.spawn(function()
+        while State.FishingRunning do
+            -- Continuous firing tanpa delay
+            pcall(function()
+                local t = os.clock()
+                Remotes.Cancel:InvokeServer()
+                Remotes.Charge:InvokeServer({[1] = t})
+                Remotes.Request:InvokeServer(t, t, t)
+            end)
+            
+            task.wait(State.CompleteDelay)
+            
+            pcall(function()
+                Remotes.Complete:FireServer()
+                Remotes.Complete:FireServer()
+            end)
+            
+            task.wait(State.CancelDelay)
+        end
+    end)
+    
+    -- Add extra spam threads
+    for i = 2, SpamRate do
+        ActiveThreads[i] = task.spawn(function()
+            task.wait(i * 0.05)  -- Stagger
+            while State.FishingRunning do
+                pcall(function()
+                    ForceStep123()
+                    task.wait(State.CompleteDelay + State.CancelDelay)
+                    ForceStep4()
+                end)
+            end
+        end)
+    end
+end
+
+-- ============================================
+-- STOP FUNCTION
+-- ============================================
+local function StopAllFishing()
+    State.FishingRunning = false
+    
+    -- Cancel all threads
+    for i, thread in pairs(ActiveThreads) do
+        if thread then
+            task.cancel(thread)
+        end
+        ActiveThreads[i] = nil
+    end
+    
+    -- Force cancel multiple times
+    for i = 1, 5 do
+        ForceCancel()
+        task.wait(0.2)
+    end
+    
+    print("🛑 All fishing operations stopped!")
+end
+
+-- ============================================
+-- UI CONTROLS
 -- ============================================
 
+local FishingMode = "Spam"  -- Default mode
+
+-- Mode Selection
+BlatantMain:Dropdown({
+    Title = "Fishing Mode",
+    Desc = "Choose spam intensity",
+    Values = {"Spam", "Ultra Spam", "Rapid Fire"},
+    Value = "Spam",
+    Callback = function(mode)
+        FishingMode = mode
+        print("✅ Mode set to:", mode)
+    end
+})
+
+-- Spam Rate Control
+BlatantMain:Input({
+    Title = "Concurrent Rods",
+    Desc = "How many rods active at once (1-10)",
+    Value = tostring(SpamRate),
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then
+            SpamRate = math.clamp(num, 1, 10)
+            print("✅ Concurrent Rods set to:", SpamRate)
+        end
+    end
+})
+
+BlatantMain:Divider()
+
+-- Main Toggle
 BlatantMain:Toggle({
-    Title = "Blatant Fishing (Optimized)",
-    Desc = "Auto-adaptive speed system",
+    Title = "Spam Fishing",
+    Desc = "Start multi-rod spam fishing",
     Value = false,
     Callback = function(enabled)
         State.FishingRunning = enabled
+        
         if enabled then
-            StartOptimizedLoop()  -- ✅ Pakai optimized version
+            if FishingMode == "Spam" then
+                StartSpamFishingLoop()
+            elseif FishingMode == "Ultra Spam" then
+                StartUltraSpamLoop()
+            elseif FishingMode == "Rapid Fire" then
+                StartRapidFireLoop()
+            end
         else
-            -- Safe stop with multiple cancels
-            OptimizedForceCancel()
-            task.wait(0.5)
-            OptimizedForceCancel()
-            task.wait(0.3)
-            OptimizedForceCancel()
+            StopAllFishing()
         end
     end
 })
 
 BlatantMain:Input({
     Title = "Complete Delay",
-    Desc = "Delay before Step 4 (auto-adjusts)",
+    Desc = "Delay before Step 4",
     Value = tostring(State.CompleteDelay),
     Callback = function(value)
         local num = tonumber(value)
         if num then
-            State.CompleteDelay = math.max(0.1, num)
-            print("✅ Complete Delay set to:", State.CompleteDelay)
+            State.CompleteDelay = math.max(0, num)
+            print("✅ Complete Delay:", State.CompleteDelay)
         end
     end
 })
 
 BlatantMain:Input({
     Title = "Cancel Delay",
-    Desc = "Delay before restart (auto-adjusts)",
+    Desc = "Delay before restart",
     Value = tostring(State.CancelDelay),
     Callback = function(value)
         local num = tonumber(value)
         if num then
-            State.CancelDelay = math.max(0.05, num)
-            print("✅ Cancel Delay set to:", State.CancelDelay)
+            State.CancelDelay = math.max(0, num)
+            print("✅ Cancel Delay:", State.CancelDelay)
         end
     end
 })
 
--- Stats Display (Real-time monitoring)
-BlatantMain:Paragraph({
-    Title = "📊 Statistics",
-    Desc = "Will update during fishing..."
-})
+BlatantMain:Divider()
 
--- Stats Update Loop
-task.spawn(function()
-    while task.wait(3) do
-        if State.FishingRunning then
-            local total = FishingStats.TotalAttempts
-            local rate = total > 0 and (FishingStats.Success / total * 100) or 0
-            
-            local statsText = string.format(
-                "Speed: %s | Success: %d | Fail: %d\nRate: %.1f%% | Total: %d",
-                FishingStats.CurrentSpeed,
-                FishingStats.Success,
-                FishingStats.Fail,
-                rate,
-                total
-            )
-            
-            print("📊 " .. statsText)
-            
-            -- Update UI paragraph kalau didukung
-            -- BlatantMain:UpdateParagraph(statsText)
-        end
-    end
-end)
-
--- ============================================
--- ADVANCED FEATURES (BONUS)
--- ============================================
-
--- Speed Presets
-local SpeedPresets = {
-    ["Safe"] = {Complete = 0.71, Cancel = 0.32},
-    ["Balanced"] = {Complete = 0.45, Cancel = 0.18},
-    ["Fast"] = {Complete = 0.30, Cancel = 0.12},
-    ["Turbo"] = {Complete = 0.20, Cancel = 0.08}
-}
-
-BlatantMain:Dropdown({
-    Title = "Speed Preset",
-    Desc = "Quick delay presets",
-    Values = {"Safe", "Balanced", "Fast", "Turbo"},
-    Value = "Safe",
-    Callback = function(preset)
-        local settings = SpeedPresets[preset]
-        if settings then
-            State.CompleteDelay = settings.Complete
-            State.CancelDelay = settings.Cancel
-            print(string.format("⚡ Preset '%s' loaded! Complete: %.2f | Cancel: %.2f", 
-                preset, settings.Complete, settings.Cancel))
-        end
-    end
-})
-
--- Emergency Stop Button
+-- Quick Presets untuk Spam
 BlatantMain:Button({
-    Title = "🚨 Emergency Stop",
-    Desc = "Force stop all fishing operations",
+    Title = "Preset: Balanced Spam",
+    Desc = "3 Rods | 0.45s / 0.18s",
     Callback = function()
-        State.FishingRunning = false
-        
-        if State.LoopThread then
-            task.cancel(State.LoopThread)
-            State.LoopThread = nil
-        end
-        
-        -- Multiple cancel attempts
-        for i = 1, 5 do
-            OptimizedForceCancel()
-            task.wait(0.2)
-        end
-        
-        print("🛑 EMERGENCY STOP EXECUTED!")
+        SpamRate = 3
+        State.CompleteDelay = 0.45
+        State.CancelDelay = 0.18
+        print("✅ Balanced Spam preset loaded!")
     end
+})
+
+BlatantMain:Button({
+    Title = "Preset: Aggressive Spam",
+    Desc = "5 Rods | 0.30s / 0.12s",
+    Callback = function()
+        SpamRate = 5
+        State.CompleteDelay = 0.30
+        State.CancelDelay = 0.12
+        print("🔥 Aggressive Spam preset loaded!")
+    end
+})
+
+BlatantMain:Button({
+    Title = "Preset: EXTREME Spam",
+    Desc = "8 Rods | 0.20s / 0.08s ⚠️",
+    Callback = function()
+        SpamRate = 8
+        State.CompleteDelay = 0.20
+        State.CancelDelay = 0.08
+        print("⚡ EXTREME Spam preset loaded! HIGH RISK!")
+    end
+})
+
+-- ============================================
+-- SPAM INFO
+-- ============================================
+BlatantMain:Paragraph({
+    Title = "⚠️ Spam Mode Info",
+    Desc = [[
+• Spam: Multiple rods sequentially
+• Ultra Spam: Burst spam with delays
+• Rapid Fire: Continuous non-stop
+
+Higher spam rate = Higher ban risk!
+Start with 3 rods, increase gradually.
+    ]]
 })
 
 BlatantTab:Divider()
