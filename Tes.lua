@@ -115,89 +115,316 @@ local BlatantMain = BlatantTab:Section({
     Opened = true
 })
 
--- ⚡ MAXIMUM SPEED - NO SAFETY
-local function ForceStep123()
-    local t = os.clock()
-    Remotes.Cancel:FireServer()  -- Pakai Fire kalau bisa
-    Remotes.Charge:FireServer({[1] = t})
-    Remotes.Request:FireServer(t, t, t)
+-- ============================================
+-- OPTIMIZED BLATANT FISHING SYSTEM
+-- ============================================
+
+-- Enhanced State dengan Stats Tracking
+local FishingStats = {
+    Success = 0,
+    Fail = 0,
+    TotalAttempts = 0,
+    LastAdjust = os.clock(),
+    CurrentSpeed = "Normal"
+}
+
+-- Fishing Functions (Optimized)
+local function OptimizedForceStep123()
+    local timestamp = os.clock()
+    local success, errorMsg = pcall(function()
+        Remotes.Cancel:InvokeServer()
+        Remotes.Charge:InvokeServer({[1] = timestamp})
+        Remotes.Request:InvokeServer(timestamp, timestamp, timestamp)
+    end)
+    
+    FishingStats.TotalAttempts = FishingStats.TotalAttempts + 1
+    
+    if success then
+        FishingStats.Success = FishingStats.Success + 1
+    else
+        FishingStats.Fail = FishingStats.Fail + 1
+        warn("⚠️ Step123 failed:", errorMsg)
+    end
+    
+    return success
 end
 
-local function StartFishingLoop()
+local function OptimizedForceStep4()
+    local success = pcall(function()
+        Remotes.Complete:FireServer()
+        Remotes.Complete:FireServer()
+    end)
+    
+    if not success then
+        warn("⚠️ Step4 failed")
+    end
+    
+    return success
+end
+
+local function OptimizedForceCancel()
+    pcall(function()
+        Remotes.Complete:FireServer()
+        Remotes.Cancel:InvokeServer()
+        Remotes.Cancel:InvokeServer()
+    end)
+end
+
+-- Auto Adaptive Delay System
+local function AutoAdjustDelay()
+    local now = os.clock()
+    
+    -- Adjust setiap 15 detik
+    if (now - FishingStats.LastAdjust) < 15 then
+        return
+    end
+    
+    local total = FishingStats.Success + FishingStats.Fail
+    if total < 5 then return end  -- Butuh minimal 5 attempts untuk adjust
+    
+    local successRate = FishingStats.Success / total
+    
+    if successRate < 0.6 then
+        -- Success rate rendah (<60%) - SLOW DOWN
+        State.CompleteDelay = math.min(1.2, State.CompleteDelay + 0.08)
+        State.CancelDelay = math.min(0.6, State.CancelDelay + 0.04)
+        FishingStats.CurrentSpeed = "Slow"
+        print("🐌 Low success rate! Speed: SLOW | Delay +")
+        
+    elseif successRate < 0.8 then
+        -- Success rate medium (60-80%) - MAINTAIN
+        FishingStats.CurrentSpeed = "Normal"
+        print("⚡ Medium success rate. Speed: NORMAL")
+        
+    elseif successRate >= 0.9 then
+        -- Success rate tinggi (>90%) - SPEED UP
+        State.CompleteDelay = math.max(0.25, State.CompleteDelay - 0.05)
+        State.CancelDelay = math.max(0.08, State.CancelDelay - 0.02)
+        FishingStats.CurrentSpeed = "Fast"
+        print("🚀 High success rate! Speed: FAST | Delay -")
+    end
+    
+    -- Reset stats untuk next cycle
+    FishingStats.LastAdjust = now
+    FishingStats.Success = 0
+    FishingStats.Fail = 0
+    
+    -- Print current delays
+    print(string.format("📊 Complete: %.2fs | Cancel: %.2fs", 
+        State.CompleteDelay, State.CancelDelay))
+end
+
+-- Smart Retry System
+local function SmartRetry(func, maxRetries)
+    maxRetries = maxRetries or 2
+    
+    for attempt = 1, maxRetries do
+        if func() then
+            return true
+        end
+        
+        if attempt < maxRetries then
+            task.wait(0.05)  -- Short retry delay
+        end
+    end
+    
+    return false
+end
+
+-- Optimized Main Loop
+local function StartOptimizedLoop()
+    if State.LoopThread then
+        task.cancel(State.LoopThread)
+    end
+
     State.Phase = "INIT23"
     State.LastStepTime = os.clock()
+    
+    -- Reset stats
+    FishingStats.Success = 0
+    FishingStats.Fail = 0
+    FishingStats.TotalAttempts = 0
+    FishingStats.LastAdjust = os.clock()
+
+    print("✅ Optimized Fishing Started!")
 
     State.LoopThread = task.spawn(function()
         while State.FishingRunning do
-            -- ❌ Hapus task.wait() untuk max speed
+            task.wait(0.02)  -- Minimal safe delay
             local now = os.clock()
+            
+            -- Auto adjust delays based on success rate
+            AutoAdjustDelay()
 
+            -- Timeout protection (reset if stuck)
+            if (now - State.LastStepTime) > 8 then
+                warn("⏰ Timeout detected! Resetting phase...")
+                State.Phase = "STEP123"
+                State.LastStepTime = now
+            end
+
+            -- PHASE: INIT23 atau STEP123 (Start Fishing)
             if State.Phase == "INIT23" or State.Phase == "STEP123" then
                 State.LastStepTime = now
-                ForceStep123()
-                State.Phase = "WAIT_COMPLETE"
                 
+                -- Retry system untuk handle failures
+                if SmartRetry(OptimizedForceStep123, 2) then
+                    State.Phase = "WAIT_COMPLETE"
+                else
+                    -- Kalau masih gagal, wait sebentar
+                    task.wait(0.2)
+                end
+
+            -- PHASE: WAIT_COMPLETE (Tunggu Complete Delay)
             elseif State.Phase == "WAIT_COMPLETE" then
                 if (now - State.LastStepTime) >= State.CompleteDelay then
                     State.Phase = "STEP4"
                 end
-                
+
+            -- PHASE: STEP4 (Complete Fishing)
             elseif State.Phase == "STEP4" then
                 State.LastStepTime = now
-                local t = os.clock()
-                Remotes.Complete:FireServer()
-                Remotes.Complete:FireServer()
+                OptimizedForceStep4()
                 State.Phase = "WAIT_STOP"
-                
+
+            -- PHASE: WAIT_STOP (Tunggu Cancel Delay)
             elseif State.Phase == "WAIT_STOP" then
                 if (now - State.LastStepTime) >= State.CancelDelay then
                     State.Phase = "STEP123"
                 end
             end
         end
+        
+        print("🛑 Optimized Fishing Stopped!")
     end)
 end
 
--- Blatant UI Controls
+-- ============================================
+-- BLATANT UI CONTROLS (UPDATED)
+-- ============================================
+
 BlatantMain:Toggle({
-    Title = "Blatant Fishing",
+    Title = "Blatant Fishing (Optimized)",
+    Desc = "Auto-adaptive speed system",
     Value = false,
     Callback = function(enabled)
         State.FishingRunning = enabled
         if enabled then
-            StartFishingLoop()
+            StartOptimizedLoop()  -- ✅ Pakai optimized version
         else
-            ForceCancel()
+            -- Safe stop with multiple cancels
+            OptimizedForceCancel()
             task.wait(0.5)
-            ForceCancel()
-            ForceCancel()
-            task.wait(1)
-            ForceCancel()
+            OptimizedForceCancel()
+            task.wait(0.3)
+            OptimizedForceCancel()
         end
     end
 })
 
 BlatantMain:Input({
     Title = "Complete Delay",
-    Desc = "Delay before Step 4",
+    Desc = "Delay before Step 4 (auto-adjusts)",
     Value = tostring(State.CompleteDelay),
     Callback = function(value)
         local num = tonumber(value)
         if num then
-            State.CompleteDelay = math.max(0, num)
+            State.CompleteDelay = math.max(0.1, num)
+            print("✅ Complete Delay set to:", State.CompleteDelay)
         end
     end
 })
 
 BlatantMain:Input({
     Title = "Cancel Delay",
-    Desc = "Delay before restart",
+    Desc = "Delay before restart (auto-adjusts)",
     Value = tostring(State.CancelDelay),
     Callback = function(value)
         local num = tonumber(value)
         if num then
-            State.CancelDelay = math.max(0, num)
+            State.CancelDelay = math.max(0.05, num)
+            print("✅ Cancel Delay set to:", State.CancelDelay)
         end
+    end
+})
+
+-- Stats Display (Real-time monitoring)
+BlatantMain:Paragraph({
+    Title = "📊 Statistics",
+    Desc = "Will update during fishing..."
+})
+
+-- Stats Update Loop
+task.spawn(function()
+    while task.wait(3) do
+        if State.FishingRunning then
+            local total = FishingStats.TotalAttempts
+            local rate = total > 0 and (FishingStats.Success / total * 100) or 0
+            
+            local statsText = string.format(
+                "Speed: %s | Success: %d | Fail: %d\nRate: %.1f%% | Total: %d",
+                FishingStats.CurrentSpeed,
+                FishingStats.Success,
+                FishingStats.Fail,
+                rate,
+                total
+            )
+            
+            print("📊 " .. statsText)
+            
+            -- Update UI paragraph kalau didukung
+            -- BlatantMain:UpdateParagraph(statsText)
+        end
+    end
+end)
+
+-- ============================================
+-- ADVANCED FEATURES (BONUS)
+-- ============================================
+
+-- Speed Presets
+local SpeedPresets = {
+    ["Safe"] = {Complete = 0.71, Cancel = 0.32},
+    ["Balanced"] = {Complete = 0.45, Cancel = 0.18},
+    ["Fast"] = {Complete = 0.30, Cancel = 0.12},
+    ["Turbo"] = {Complete = 0.20, Cancel = 0.08}
+}
+
+BlatantMain:Dropdown({
+    Title = "Speed Preset",
+    Desc = "Quick delay presets",
+    Values = {"Safe", "Balanced", "Fast", "Turbo"},
+    Value = "Safe",
+    Callback = function(preset)
+        local settings = SpeedPresets[preset]
+        if settings then
+            State.CompleteDelay = settings.Complete
+            State.CancelDelay = settings.Cancel
+            print(string.format("⚡ Preset '%s' loaded! Complete: %.2f | Cancel: %.2f", 
+                preset, settings.Complete, settings.Cancel))
+        end
+    end
+})
+
+-- Emergency Stop Button
+BlatantMain:Button({
+    Title = "🚨 Emergency Stop",
+    Desc = "Force stop all fishing operations",
+    Callback = function()
+        State.FishingRunning = false
+        
+        if State.LoopThread then
+            task.cancel(State.LoopThread)
+            State.LoopThread = nil
+        end
+        
+        -- Multiple cancel attempts
+        for i = 1, 5 do
+            OptimizedForceCancel()
+            task.wait(0.2)
+        end
+        
+        print("🛑 EMERGENCY STOP EXECUTED!")
     end
 })
 
