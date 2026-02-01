@@ -88,6 +88,7 @@ local function ForceStep123()
         pcall(function()
                     
             RF_Charge:InvokeServer({ [4] = os.clock() })
+            RF_Cancel:InvokeServer()
             RF_Request:InvokeServer(os.clock(), os.clock(), os.clock())
         end)
     end)
@@ -97,7 +98,7 @@ local function ForceStep4()
     task.spawn(function()
         pcall(function()        
             RE_Complete:FireServer()
-            RF_Cancel:InvokeServer()        
+            
         end)
     end)
 end
