@@ -27,79 +27,56 @@ Window:Tag({
 })
 
 --====================================
--- SERVICES
---====================================
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local LocalPlayer = Players.LocalPlayer
-
-local Net = ReplicatedStorage
-    :WaitForChild("Packages")
-    :WaitForChild("_Index")
-    :WaitForChild("sleitnick_net@0.2.0")
-    :WaitForChild("net")
-
---====================================
--- REMOTES
---====================================
-local RF_Charge   = Net:WaitForChild("RF/ChargeFishingRod")
-local RF_Request  = Net:WaitForChild("RF/RequestFishingMinigameStarted")
-local RF_Cancel   = Net:WaitForChild("RF/CancelFishingInputs")
-local RE_Complete = Net:WaitForChild("RE/FishingCompleted")
-local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
-local RF_Weather  = Net:WaitForChild("RF/PurchaseWeatherEvent")
-
---====================================
--- TAB: BLATANT
---====================================
-local BlatantTab = Window:Tab({
-    Title = "Blatant",
-    Icon = "zap"
-})
-
-BlatantTab:Paragraph({
-    Title = "Blatant Fishing",
-    Desc = "Auto fishing by forcing server steps.\n⚠ High risk – use wisely."
-})
-
-BlatantTab:Divider()
-
-local BlatantMain = BlatantTab:Section({
-    Title = "Main Control",
-    Opened = true
-})
-
---====================================
 -- STATE & SETTINGS
 --====================================
 local running = false
 local CompleteDelay = 0.71
 local CancelDelay = 0.32
-local phase = "STEP123"
+local TickRate = 0.03  -- Loop tick (bukan delay antar remote)
+local TimeoutDuration = 3
+local MaxRetries = 3
+
+local phase = "IDLE"
 local lastStepTime = 0
 local loopThread
+local retryCount = 0
 
 --====================================
--- FORCE FUNCTIONS
+-- FORCE FUNCTIONS (ZERO DELAY, PARALLEL)
 --====================================
 local function ForceStep123()
+    local success = false
+    
+    -- Jalankan SEMUA remote SEKALIGUS tanpa delay
     task.spawn(function()
         pcall(function()
-            
-            RF_Cancel:InvokeServer({ [1] = True })       
-            RF_Charge:InvokeServer({ [4] = os.clock() })
-            
-            RF_Request:InvokeServer(os.clock(), os.clock(), os.clock())
+            RF_Cancel:InvokeServer({[1] = true})
         end)
     end)
+    
+    task.spawn(function()
+        pcall(function()
+            RF_Charge:InvokeServer({[4] = os.clock()})
+        end)
+    end)
+    
+    task.spawn(function()
+        pcall(function()
+            local t = os.clock()
+            RF_Request:InvokeServer(t, t, t)
+            success = true
+        end)
+    end)
+    
+    return success
 end
 
 local function ForceStep4()
+    -- Fire complete 2x INSTANT
     task.spawn(function()
-        pcall(function()        
+        pcall(function()
             RE_Complete:FireServer()
-            RE_Complete:FireServer()
+            RE_Complete:FireServer()  -- Langsung tanpa delay
         end)
     end)
 end
@@ -107,57 +84,74 @@ end
 local function ForceCancel()
     task.spawn(function()
         pcall(function()
-            RE_Complete:FireServer()        
+            RE_Complete:FireServer()
             RF_Cancel:InvokeServer()
-            RF_Cancel:InvokeServer()        
         end)
     end)
 end
 
 --====================================
--- LOOP SYSTEM (IMPROVED)
+-- LOOP SYSTEM (AGGRESSIVE MODE)
 --====================================
 local function StartLoop()
-    if loopThread then task.cancel(loopThread) end
+    if loopThread then 
+        task.cancel(loopThread)
+        loopThread = nil
+    end
 
-    phase = "INIT23"
+    phase = "IDLE"
     lastStepTime = os.clock()
+    retryCount = 0
 
     loopThread = task.spawn(function()
         while running do
-            task.wait(0)
             local now = os.clock()
+            local elapsed = now - lastStepTime
 
-            if (now - lastStepTime) > 3 then
-                phase = "STEP123"
+            -- Timeout protection
+            if phase ~= "IDLE" and elapsed > TimeoutDuration then
+                warn("[Blatant] Timeout - Reset")
+                phase = "IDLE"
+                retryCount = retryCount + 1
+                
+                if retryCount >= MaxRetries then
+                    warn("[Blatant] Max retries - STOP")
+                    running = false
+                    break
+                end
             end
 
-            if phase == "INIT23" then
+            -- State Machine (NO DELAY BETWEEN REMOTE CALLS)
+            if phase == "IDLE" then
+                phase = "INIT"
                 lastStepTime = now
-                ForceStep123()
-                phase = "WAIT_COMPLETE"
 
-            elseif phase == "STEP123" then
+            elseif phase == "INIT" then
                 lastStepTime = now
-                ForceStep123()
+                ForceStep123()  -- Semua remote dipanggil parallel
                 phase = "WAIT_COMPLETE"
+                retryCount = 0
 
             elseif phase == "WAIT_COMPLETE" then
-                if (now - lastStepTime) >= CompleteDelay then
-                    phase = "STEP4"
+                if elapsed >= CompleteDelay then
+                    phase = "COMPLETE"
                 end
 
-            elseif phase == "STEP4" then
+            elseif phase == "COMPLETE" then
                 lastStepTime = now
-                ForceStep4()
-                phase = "WAIT_STOP"
+                ForceStep4()  -- Fire 2x instant
+                phase = "WAIT_COOLDOWN"
 
-            elseif phase == "WAIT_STOP" then
-                if (now - lastStepTime) >= CancelDelay then
-                    phase = "STEP123"
+            elseif phase == "WAIT_COOLDOWN" then
+                if elapsed >= CancelDelay then
+                    phase = "INIT"  -- Loop ulang
                 end
             end
+
+            task.wait(TickRate)  -- Tick untuk check state, bukan delay remote
         end
+        
+        ForceCancel()
     end)
 end
 
@@ -170,14 +164,22 @@ BlatantMain:Toggle({
     Callback = function(v)
         running = v
         if v then
+            print("[Blatant] STARTING...")
             StartLoop()
         else
-            ForceCancel()
-            task.wait(0.5)
-            ForceCancel()
-            ForceCancel()
-            task.wait(1)
-            ForceCancel()    
+            print("[Blatant] STOPPING...")
+            phase = "IDLE"
+            
+            task.spawn(function()
+                ForceCancel()
+                task.wait(0.2)
+                ForceCancel()
+                
+                if loopThread then
+                    task.cancel(loopThread)
+                    loopThread = nil
+                end
+            end)
         end
     end
 })
