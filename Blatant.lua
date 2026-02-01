@@ -119,7 +119,6 @@ local function ForceStep4()
     -- Fire complete 2x INSTANT
     task.spawn(function()
         pcall(function()
-            RE_Complete:FireServer()
             RE_Complete:FireServer()  -- Langsung tanpa delay
         end)
     end)
