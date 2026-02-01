@@ -76,7 +76,7 @@ local BlatantMain = BlatantTab:Section({
 local running = false
 local CompleteDelay = 0.71
 local CancelDelay = 0.32
-local TickRate = 0.03  -- Loop tick (bukan delay antar remote)
+local TickRate = 0.01  -- Loop tick (bukan delay antar remote)
 local TimeoutDuration = 3
 local MaxRetries = 3
 
