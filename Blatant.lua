@@ -99,7 +99,7 @@ local function ForceStep4()
     task.spawn(function()
         pcall(function()        
             RE_Complete:FireServer()
-            
+            RE_Complete:FireServer()
         end)
     end)
 end
