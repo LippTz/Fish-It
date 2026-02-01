@@ -27,6 +27,50 @@ Window:Tag({
 })
 
 --====================================
+-- SERVICES
+--====================================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Net = ReplicatedStorage
+    :WaitForChild("Packages")
+    :WaitForChild("_Index")
+    :WaitForChild("sleitnick_net@0.2.0")
+    :WaitForChild("net")
+
+--====================================
+-- REMOTES
+--====================================
+local RF_Charge   = Net:WaitForChild("RF/ChargeFishingRod")
+local RF_Request  = Net:WaitForChild("RF/RequestFishingMinigameStarted")
+local RF_Cancel   = Net:WaitForChild("RF/CancelFishingInputs")
+local RE_Complete = Net:WaitForChild("RE/FishingCompleted")
+local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
+local RF_Weather  = Net:WaitForChild("RF/PurchaseWeatherEvent")
+
+--====================================
+-- TAB: BLATANT
+--====================================
+local BlatantTab = Window:Tab({
+    Title = "Blatant",
+    Icon = "zap"
+})
+
+BlatantTab:Paragraph({
+    Title = "Blatant Fishing",
+    Desc = "Auto fishing by forcing server steps.\n⚠ High risk – use wisely."
+})
+
+BlatantTab:Divider()
+
+local BlatantMain = BlatantTab:Section({
+    Title = "Main Control",
+    Opened = true
+})
+
+--====================================
 -- STATE & SETTINGS
 --====================================
 local running = false
