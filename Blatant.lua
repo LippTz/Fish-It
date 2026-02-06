@@ -250,6 +250,22 @@ BlatantMain:Input({
 
 BlatantTab:Divider()
 
+local BlatantUtil = BlatantTab:Section({
+    Title = "Utility",
+    Opened = true
+})
+
+BlatantUtil:Button({
+    Title = "Sell All Items",
+    Callback = function()
+        pcall(function()
+            RF_SellAll:InvokeServer()
+        end)
+    end
+})
+
+BlatantTab:Divider()
+
 --====================================
 -- TAB: TELEPORT
 --====================================
