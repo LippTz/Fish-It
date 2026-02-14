@@ -31,7 +31,6 @@ Window:Tag({
 --====================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -52,7 +51,7 @@ local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
 local RF_Weather  = Net:WaitForChild("RF/PurchaseWeatherEvent")
 
 --====================================
--- TAB: AUTO FARM (NEW LEGIT VERSION)
+-- TAB: AUTO FARM
 --====================================
 local FarmTab = Window:Tab({
     Title = "Auto Farm",
@@ -60,8 +59,8 @@ local FarmTab = Window:Tab({
 })
 
 FarmTab:Paragraph({
-    Title = "Legit Auto Fishing",
-    Desc = "Auto complete fishing minigame.\nFollows game mechanics - safe & undetectable."
+    Title = "Auto Fishing System",
+    Desc = "Simple auto fishing with adjustable delay.\nNo spam, clean & efficient."
 })
 
 FarmTab:Divider()
@@ -72,150 +71,55 @@ local FarmMain = FarmTab:Section({
 })
 
 --====================================
--- AUTO FARM STATE
+-- STATE & SETTINGS
 --====================================
 local AutoFishEnabled = false
-local AutoCatchEnabled = false
-local AutoReelEnabled = false
-local InstantCatchEnabled = false
+local CompleteDelay = 0.5
+local loopThread
 
 --====================================
--- GAME DETECTION FUNCTIONS
+-- SIMPLE AUTO FARM LOOP
 --====================================
-local function GetPlayerGui()
-    return LocalPlayer:WaitForChild("PlayerGui", 5)
-end
-
-local function IsFishingMinigameActive()
-    local gui = GetPlayerGui()
-    if not gui then return false end
-    
-    -- Check for fishing minigame GUI
-    local fishingGui = gui:FindFirstChild("FishingMinigame")
-    if fishingGui and fishingGui.Enabled then
-        return true
-    end
-    
-    return false
-end
-
-local function GetMinigameButton()
-    local gui = GetPlayerGui()
-    if not gui then return nil end
-    
-    local fishingGui = gui:FindFirstChild("FishingMinigame")
-    if not fishingGui then return nil end
-    
-    -- Find the click/complete button
-    for _, v in ipairs(fishingGui:GetDescendants()) do
-        if v:IsA("TextButton") or v:IsA("ImageButton") then
-            if v.Visible and v.Name:lower():match("complete") or 
-               v.Name:lower():match("catch") or 
-               v.Name:lower():match("reel") then
-                return v
-            end
-        end
-    end
-    
-    return nil
-end
-
---====================================
--- AUTO CATCH (INSTANT COMPLETE)
---====================================
-local catchConnection
-
-local function StartAutoCatch()
-    if catchConnection then
-        catchConnection:Disconnect()
-    end
-    
-    catchConnection = RunService.Heartbeat:Connect(function()
-        if not AutoCatchEnabled then return end
-        if not IsFishingMinigameActive() then return end
-        
-        -- Instant complete when minigame appears
-        task.spawn(function()
-            pcall(function()
-                if InstantCatchEnabled then
-                    -- Instant mode - complete immediately
-                    RF_Complete:InvokeServer()
-                else
-                    -- Small delay for legit feel
-                    task.wait(0.1)
-                    RF_Complete:InvokeServer()
-                end
-            end)
-        end)
-    end)
-end
-
---====================================
--- AUTO REEL (AUTO CLICK MINIGAME)
---====================================
-local reelConnection
-
-local function StartAutoReel()
-    if reelConnection then
-        reelConnection:Disconnect()
-    end
-    
-    reelConnection = RunService.Heartbeat:Connect(function()
-        if not AutoReelEnabled then return end
-        
-        local button = GetMinigameButton()
-        if button and button.Visible then
-            -- Click the button
-            task.spawn(function()
-                pcall(function()
-                    for _, connection in pairs(getconnections(button.MouseButton1Click)) do
-                        connection:Fire()
-                    end
-                end)
-            end)
-        end
-    end)
-end
-
---====================================
--- AUTO FISH (AUTO CAST & COMPLETE)
---====================================
-local fishConnection
-local lastCastTime = 0
-local castCooldown = 2
-
 local function StartAutoFish()
-    if fishConnection then
-        fishConnection:Disconnect()
+    if loopThread then
+        task.cancel(loopThread)
+        loopThread = nil
     end
-    
-    fishConnection = RunService.Heartbeat:Connect(function()
-        if not AutoFishEnabled then return end
-        
-        local now = tick()
-        
-        -- Auto complete if minigame active
-        if IsFishingMinigameActive() then
-            task.spawn(function()
-                pcall(function()
-                    task.wait(0.1)
-                    RF_Complete:InvokeServer()
-                end)
-            end)
-        else
-            -- Auto cast if not fishing
-            if now - lastCastTime >= castCooldown then
-                task.spawn(function()
-                    pcall(function()
-                        local t = os.clock()
-                        RF_Charge:InvokeServer({[4] = t})
-                        task.wait(0.05)
-                        RF_Request:InvokeServer(t, t, t)
-                        lastCastTime = now
-                    end)
-                end)
+
+    loopThread = task.spawn(function()
+        while AutoFishEnabled do
+            -- Check if still enabled
+            if not AutoFishEnabled then
+                print("[Auto Fish] Stopped by toggle")
+                break
             end
+            
+            -- STEP 1-2: Cast fishing rod
+            pcall(function()
+                local t = os.clock()
+                RF_Charge:InvokeServer({[4] = t})
+                RF_Charge:InvokeServer({[4] = t})
+                RF_Request:InvokeServer(t, t, t)
+            end)
+            
+            -- Wait for complete delay (tunggu ikan bisa di-catch)
+            task.wait(CompleteDelay)
+            
+            -- Check again before completing
+            if not AutoFishEnabled then
+                break
+            end
+            
+            -- STEP 3: Complete fishing
+            pcall(function()
+                RF_Complete:InvokeServer()
+            end)
+            
+            -- Small delay before next loop (anti spam)
+            task.wait(0.1)
         end
+        
+        print("[Auto Fish] Loop ended")
     end)
 end
 
@@ -223,72 +127,60 @@ end
 -- UI CONTROLS
 --====================================
 FarmMain:Toggle({
-    Title = "Auto Fish (Full Auto)",
-    Desc = "Auto cast & complete fishing",
+    Title = "Auto Fishing",
+    Desc = "Auto cast & complete with delay",
     Value = false,
     Callback = function(v)
         AutoFishEnabled = v
         
         if v then
             print("[Auto Fish] Starting...")
+            print("[Auto Fish] Complete Delay:", CompleteDelay, "seconds")
             StartAutoFish()
         else
-            print("[Auto Fish] Stopped")
-            if fishConnection then
-                fishConnection:Disconnect()
-                fishConnection = nil
+            print("[Auto Fish] Stopping...")
+            AutoFishEnabled = false
+            
+            if loopThread then
+                task.cancel(loopThread)
+                loopThread = nil
             end
+            
+            -- Cleanup
+            task.spawn(function()
+                pcall(function()
+                    RF_Cancel:InvokeServer({[1] = true})
+                end)
+            end)
+            
+            print("[Auto Fish] Stopped!")
         end
     end
 })
 
-FarmMain:Toggle({
-    Title = "Auto Catch Only",
-    Desc = "Auto complete minigame only (no auto cast)",
-    Value = false,
+FarmMain:Input({
+    Title = "Complete Delay",
+    Desc = "Delay sebelum complete (detik)",
+    Value = tostring(CompleteDelay),
     Callback = function(v)
-        AutoCatchEnabled = v
-        
-        if v then
-            print("[Auto Catch] Starting...")
-            StartAutoCatch()
-        else
-            print("[Auto Catch] Stopped")
-            if catchConnection then
-                catchConnection:Disconnect()
-                catchConnection = nil
-            end
+        local n = tonumber(v)
+        if n and n >= 0 then
+            CompleteDelay = n
+            print("[Settings] Complete Delay set to:", CompleteDelay, "seconds")
         end
     end
 })
 
-FarmMain:Toggle({
-    Title = "Auto Reel (Click Buttons)",
-    Desc = "Auto click minigame buttons",
-    Value = false,
-    Callback = function(v)
-        AutoReelEnabled = v
-        
-        if v then
-            print("[Auto Reel] Starting...")
-            StartAutoReel()
-        else
-            print("[Auto Reel] Stopped")
-            if reelConnection then
-                reelConnection:Disconnect()
-                reelConnection = nil
-            end
-        end
-    end
+FarmTab:Divider()
+
+local FarmInfo = FarmTab:Section({
+    Title = "How It Works",
+    Opened = true
 })
 
-FarmMain:Toggle({
-    Title = "Instant Catch",
-    Desc = "Complete minigame instantly (may be risky)",
-    Value = false,
-    Callback = function(v)
-        InstantCatchEnabled = v
-    end
+FarmInfo:Paragraph({
+    Title = "System Flow",
+    Desc = "1. Cast fishing rod (Step 1-2)\n2. Wait for Complete Delay\n3. Complete fishing (Step 3)\n4. Repeat\n\nAdjust delay based on fishing speed!"
 })
 
 FarmTab:Divider()
@@ -303,6 +195,7 @@ FarmUtil:Button({
     Callback = function()
         pcall(function()
             RF_SellAll:InvokeServer()
+            print("[Utility] Sold all items!")
         end)
     end
 })
@@ -312,6 +205,17 @@ FarmUtil:Button({
     Callback = function()
         pcall(function()
             RF_Complete:InvokeServer()
+            print("[Utility] Completed current fish!")
+        end)
+    end
+})
+
+FarmUtil:Button({
+    Title = "Cancel Fishing",
+    Callback = function()
+        pcall(function()
+            RF_Cancel:InvokeServer({[1] = true})
+            print("[Utility] Cancelled fishing!")
         end)
     end
 })
@@ -918,7 +822,7 @@ task.spawn(function()
                                 ColorSequenceKeypoint.new(1, HSV((hue + 300) % 360, 1, 1))
                             }
                             task.wait(0.02)
-                            end
+                        end
                     end)
                 end
             end
@@ -926,5 +830,5 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded - LEGIT VERSION!")
-print("[INFO] Safe auto farming - follows game mechanics")
+print("[KREINXY] Script loaded - Simple & Clean!")
+print("[INFO] Flow: Cast → Wait → Complete → Repeat")
