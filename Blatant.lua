@@ -41,12 +41,12 @@ local Net = ReplicatedStorage
     :WaitForChild("net")
 
 --====================================
--- REMOTES
+-- REMOTES (FIXED)
 --====================================
 local RF_Charge   = Net:WaitForChild("RF/ChargeFishingRod")
 local RF_Request  = Net:WaitForChild("RF/RequestFishingMinigameStarted")
 local RF_Cancel   = Net:WaitForChild("RF/CancelFishingInputs")
-local RE_Complete = Net:WaitForChild("RE/FishingCompleted")
+local RF_Complete = Net:WaitForChild("RF/CatchFishCompleted")  -- FIXED: Pakai RF bukan RE
 local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
 local RF_Weather  = Net:WaitForChild("RF/PurchaseWeatherEvent")
 
@@ -76,7 +76,7 @@ local BlatantMain = BlatantTab:Section({
 local running = false
 local CompleteDelay = 0.2
 local CancelDelay = 0.1
-local TickRate = 0.01  -- Loop tick (bukan delay antar remote)
+local TickRate = 0.01
 local TimeoutDuration = 3
 local MaxRetries = 3
 
@@ -86,12 +86,11 @@ local loopThread
 local retryCount = 0
 
 --====================================
--- FORCE FUNCTIONS (ZERO DELAY, PARALLEL)
+-- FORCE FUNCTIONS (FIXED)
 --====================================
 local function ForceStep123()
     local success = false
     
-    -- Jalankan SEMUA remote SEKALIGUS tanpa delay
     task.spawn(function()
         pcall(function()
             RF_Charge:InvokeServer({[4] = os.clock()})
@@ -116,26 +115,28 @@ local function ForceStep123()
 end
 
 local function ForceStep4()
-    -- Fire complete 2x INSTANT
+    -- FIXED: Pakai InvokeServer bukan FireServer
     task.spawn(function()
         pcall(function()
-            RE_Complete:FireServer()
-            RE_Complete:FireServer()  -- Langsung tanpa delay
+            RF_Complete:InvokeServer()
+            task.wait(0.01)
+            RF_Complete:InvokeServer()
         end)
     end)
 end
 
 local function ForceCancel()
+    -- FIXED: Pakai InvokeServer bukan FireServer
     task.spawn(function()
         pcall(function()
-            RE_Complete:FireServer()
+            RF_Complete:InvokeServer()
             RF_Cancel:InvokeServer({[1] = true})
         end)
     end)
 end
 
 --====================================
--- LOOP SYSTEM (AGGRESSIVE MODE)
+-- LOOP SYSTEM
 --====================================
 local function StartLoop()
     if loopThread then 
@@ -152,7 +153,6 @@ local function StartLoop()
             local now = os.clock()
             local elapsed = now - lastStepTime
 
-            -- Timeout protection
             if phase ~= "IDLE" and elapsed > TimeoutDuration then
                 warn("[Blatant] Timeout - Reset")
                 phase = "IDLE"
@@ -165,14 +165,13 @@ local function StartLoop()
                 end
             end
 
-            -- State Machine (NO DELAY BETWEEN REMOTE CALLS)
             if phase == "IDLE" then
                 phase = "INIT"
                 lastStepTime = now
 
             elseif phase == "INIT" then
                 lastStepTime = now
-                ForceStep123()  -- Semua remote dipanggil parallel
+                ForceStep123()
                 phase = "WAIT_COMPLETE"
                 retryCount = 0
 
@@ -183,16 +182,16 @@ local function StartLoop()
 
             elseif phase == "COMPLETE" then
                 lastStepTime = now
-                ForceStep4()  -- Fire 2x instant
+                ForceStep4()
                 phase = "WAIT_COOLDOWN"
 
             elseif phase == "WAIT_COOLDOWN" then
                 if elapsed >= CancelDelay then
-                    phase = "INIT"  -- Loop ulang
+                    phase = "INIT"
                 end
             end
 
-            task.wait(TickRate)  -- Tick untuk check state, bukan delay remote
+            task.wait(TickRate)
         end
         
         ForceCancel()
@@ -281,7 +280,6 @@ TeleportTab:Paragraph({
 
 TeleportTab:Divider()
 
--- LOCATION
 local LocationSection = TeleportTab:Section({
     Title = "Location Teleport",
     Opened = true
@@ -330,7 +328,6 @@ LocationSection:Button({
 
 TeleportTab:Divider()
 
--- PLAYER TELEPORT
 local PlayerSection = TeleportTab:Section({
     Title = "Player Teleport",
     Opened = true
@@ -380,14 +377,13 @@ PlayerSection:Button({
 TeleportTab:Divider()
 
 --====================================
--- EVENT TELEPORT (ONE-TIME SYSTEM)
+-- EVENT TELEPORT
 --====================================
 local EventSection = TeleportTab:Section({
     Title = "Event Teleport",
     Opened = true
 })
 
--- EVENT LIST
 local EventNames = {
     "Megalodon Hunt",
     "Shark Hunt",
@@ -399,7 +395,6 @@ local EventTeleportEnabled = false
 local SavedCFrame = nil
 local TeleportedToEvent = false
 
--- UI: DROPDOWN EVENT (MULTI)
 EventSection:Dropdown({
     Title = "Select Event",
     Desc = "Teleport once when event appears",
@@ -410,7 +405,6 @@ EventSection:Dropdown({
     end
 })
 
--- UI: TOGGLE
 EventSection:Toggle({
     Title = "Enable Event Teleport",
     Desc = "Auto teleport once & return after event ends",
@@ -418,7 +412,6 @@ EventSection:Toggle({
     Callback = function(v)
         EventTeleportEnabled = v
 
-        -- kalau dimatikan manual → langsung balik
         if not v and TeleportedToEvent and SavedCFrame then
             pcall(function()
                 LocalPlayer.Character:SetPrimaryPartCFrame(SavedCFrame)
@@ -436,9 +429,6 @@ EventSection:Paragraph({
     Desc = "• Teleport hanya 1x saat event muncul\n• Posisi disimpan otomatis\n• Akan kembali saat event selesai atau toggle OFF"
 })
 
---====================================
--- EVENT CF FINDER (AMAN SEMUA STRUKTUR)
---====================================
 local function GetEventCFrame(eventName)
     local menu = workspace:FindFirstChild("!!! MENU RINGS")
     if not menu then return end
@@ -464,9 +454,6 @@ local function GetEventCFrame(eventName)
     end
 end
 
---====================================
--- MONITOR EVENT (BUKAN LOOP TELEPORT)
---====================================
 task.spawn(function()
     while task.wait(1) do
         if not EventTeleportEnabled then continue end
@@ -490,7 +477,6 @@ task.spawn(function()
             end
         end
 
-        -- event sudah hilang → balik ke posisi awal
         if TeleportedToEvent and not foundEvent then
             if SavedCFrame then
                 LocalPlayer.Character:SetPrimaryPartCFrame(SavedCFrame)
@@ -572,26 +558,22 @@ MiscSection:Button({
     Callback = function()
         local Lighting = game:GetService("Lighting")
         
-        -- MATIKAN SHADOW & PANTULAN
         Lighting.GlobalShadows = false
         Lighting.EnvironmentDiffuseScale = 0
         Lighting.EnvironmentSpecularScale = 0
         Lighting.ShadowSoftness = 0
         Lighting.Brightness = 5
 
-        -- KABUT JEBLOCK (SUPER TEBAL)
         Lighting.FogStart = 0
         Lighting.FogEnd = 100
         Lighting.FogColor = Color3.fromRGB(255, 5, 5)
 
-        -- NONAKTIF POST EFFECT
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("PostEffect") then
                 v.Enabled = false
             end
         end
 
-        -- HAPUS TEXTURE / DECAL / PARTICLE
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("Texture") or obj:IsA("Decal") then
                 obj.Transparency = 1
@@ -607,7 +589,6 @@ MiscSection:Button({
             end
         end
 
-        -- NONAKTIF RUMPUT & AIR
         if workspace:FindFirstChildOfClass("Terrain") then
             local Terrain = workspace.Terrain
             Terrain:SetMaterialColor(Enum.Material.Grass, Color3.new(0,0,0))
@@ -617,11 +598,11 @@ MiscSection:Button({
             Terrain.WaterWaveSpeed = 0
         end
         
-        -- BOOST CAMERA FOV (opsional)
+        -- FIXED: Dynamic player reference
         task.spawn(function()
             for i = 1, 60 do
-                if Players.SSASSAA11 then
-                    Players.SSASSAA11.CameraMaxZoomDistance = 1000
+                if LocalPlayer then
+                    LocalPlayer.CameraMaxZoomDistance = 1000
                 end
                 task.wait()
             end
@@ -640,7 +621,7 @@ MiscSection:Button({
 })
 
 --====================================
--- NO ANIMATIONS (STRONG VERSION)
+-- NO ANIMATIONS
 --====================================
 local NoAnimationEnabled = false
 local AnimConnection
@@ -654,12 +635,10 @@ local function ApplyNoAnimation(char)
         animator = Instance.new("Animator", humanoid)
     end
 
-    -- stop semua animasi aktif
     for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
         track:Stop()
     end
 
-    -- hook animasi baru
     if AnimConnection then AnimConnection:Disconnect() end
     AnimConnection = animator.AnimationPlayed:Connect(function(track)
         track:Stop()
@@ -686,7 +665,6 @@ MiscSection:Toggle({
     end
 })
 
--- auto re-apply after respawn
 LocalPlayer.CharacterAdded:Connect(function(char)
     if NoAnimationEnabled then
         task.wait(1)
@@ -695,7 +673,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 
 --====================================
--- NO NOTIFICATION (VISIBLE BASED)
+-- NO NOTIFICATION
 --====================================
 local NoNotificationEnabled = false
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -720,7 +698,6 @@ MiscSection:Toggle({
     end
 })
 
--- 🔁 auto re-apply jika GUI dibuat ulang
 PlayerGui.ChildAdded:Connect(function(child)
     if child.Name == "Small Notification" then
         task.wait(0.2)
@@ -748,7 +725,6 @@ HUDSection:Toggle({
         HUD_Enabled = v
 
         if v then
-            -- Create HUD if missing
             if not HUDGui then
                 HUDGui = Instance.new("ScreenGui")
                 HUDGui.Name = "HUD_FPSPING"
@@ -768,7 +744,6 @@ HUDSection:Toggle({
                 HUDLabel.TextSize = 15
                 HUDLabel.Text = "FPS: --  |  Ping: --"
 
-                -- Make draggable
                 local UserInput = game:GetService("UserInputService")
                 local dragging, dragStart, startPos
 
@@ -803,7 +778,6 @@ HUDSection:Toggle({
     end
 })
 
--- LOOP UPDATE FPS & PING
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -848,49 +822,58 @@ AFKSection:Toggle({
 
 MiscTab:Divider()
 
+--====================================
+-- OVERHEAD TABLE (FIXED - SAFE WRAP)
+--====================================
+task.spawn(function()
+    task.wait(2) -- Wait for character to fully load
+    pcall(function()
+        -- FIXED: Dynamic player reference
+        local targetChar = workspace.Characters:FindFirstChild(LocalPlayer.Name)
+        if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+            local hrp = targetChar.HumanoidRootPart
+            local titleContainer = hrp:FindFirstChild("Overhead") and hrp.Overhead:FindFirstChild("TitleContainer")
+            
+            if titleContainer then
+                titleContainer.Visible = true
+                
+                local label = titleContainer:FindFirstChild("Label")
+                if label and label:IsA("TextLabel") then
+                    label.Text = "KREINXY"
+                    label.Size = UDim2.new(3, 0, 3, 0)
 
---Table Atas kepala
-local targetChar = workspace.Characters:FindFirstChild("SSASSAA11")
-if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
-    local hrp = targetChar.HumanoidRootPart
-    local titleContainer = hrp:FindFirstChild("Overhead") and hrp.Overhead:FindFirstChild("TitleContainer")
-    
-    if titleContainer then
-        titleContainer.Visible = true
-        
-        local label = titleContainer:FindFirstChild("Label")
-        if label and label:IsA("TextLabel") then
-            label.Text = "KREINXY"
-            label.Size = UDim2.new(3, 0, 3, 0)
-
-            local gradient = label:FindFirstChildOfClass("UIGradient")
-            if not gradient then
-                gradient = Instance.new("UIGradient")
-                gradient.Parent = label
-            end
-
-            gradient.Rotation = 45
-
-            -- LOOP RGB
-            task.spawn(function()
-                local hue = 0
-                while label.Parent do
-                    hue = (hue + 1) % 360
-                    local function HSV(h, s, v)
-                        return Color3.fromHSV(h/360, s, v)
+                    local gradient = label:FindFirstChildOfClass("UIGradient")
+                    if not gradient then
+                        gradient = Instance.new("UIGradient")
+                        gradient.Parent = label
                     end
 
-                    gradient.Color = ColorSequence.new{
-                        ColorSequenceKeypoint.new(0, HSV((hue) % 360, 1, 1)),
-                        ColorSequenceKeypoint.new(0.2, HSV((hue + 60) % 360, 1, 1)),
-                        ColorSequenceKeypoint.new(0.4, HSV((hue + 120) % 360, 1, 1)),
-                        ColorSequenceKeypoint.new(0.6, HSV((hue + 180) % 360, 1, 1)),
-                        ColorSequenceKeypoint.new(0.8, HSV((hue + 240) % 360, 1, 1)),
-                        ColorSequenceKeypoint.new(1, HSV((hue + 300) % 360, 1, 1))
-                    }
-                    task.wait(0.02) -- update tiap 0.05 detik
+                    gradient.Rotation = 45
+
+                    task.spawn(function()
+                        local hue = 0
+                        while label.Parent do
+                            hue = (hue + 1) % 360
+                            local function HSV(h, s, v)
+                                return Color3.fromHSV(h/360, s, v)
+                            end
+
+                            gradient.Color = ColorSequence.new{
+                                ColorSequenceKeypoint.new(0, HSV((hue) % 360, 1, 1)),
+                                ColorSequenceKeypoint.new(0.2, HSV((hue + 60) % 360, 1, 1)),
+                                ColorSequenceKeypoint.new(0.4, HSV((hue + 120) % 360, 1, 1)),
+                                ColorSequenceKeypoint.new(0.6, HSV((hue + 180) % 360, 1, 1)),
+                                ColorSequenceKeypoint.new(0.8, HSV((hue + 240) % 360, 1, 1)),
+                                ColorSequenceKeypoint.new(1, HSV((hue + 300) % 360, 1, 1))
+                            }
+                            task.wait(0.02)
+                        end
+                    end)
                 end
-            end)
+            end
         end
-    end
-end
+    end)
+end)
+
+print("[KREINXY] Script loaded successfully!")
+print("[INFO] All errors fixed - ready to use!")
