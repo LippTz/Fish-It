@@ -60,7 +60,7 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Auto Fishing System",
-    Desc = "Optimized auto fishing with safe stop.\nFast & efficient."
+    Desc = "Simple auto fishing with adjustable delay.\nNo spam, clean & efficient."
 })
 
 FarmTab:Divider()
@@ -76,11 +76,11 @@ local FarmMain = FarmTab:Section({
 local AutoFishEnabled = false
 local CompleteDelay = 0.4
 local loopThread
-local shouldStop = false -- Flag untuk stop request
-local hasCasted = false -- Track apakah sudah cast
+local shouldStop = false
+local hasCasted = false
 
 --====================================
--- OPTIMIZED AUTO FARM LOOP
+-- AUTO FARM LOOP (ORIGINAL SPEED + NEW STOP)
 --====================================
 local function StartAutoFish()
     if loopThread then
@@ -93,47 +93,40 @@ local function StartAutoFish()
 
     loopThread = task.spawn(function()
         while AutoFishEnabled and not shouldStop do
-            -- STEP 1-2: Cast fishing rod (OPTIMIZED)
+            -- STEP 1-2: Cast fishing rod (ORIGINAL - NO SPAM)
             hasCasted = true
-            task.spawn(function()
-                pcall(function()
-                    local t = os.clock()
-                    RF_Charge:InvokeServer({[4] = t})
-                    RF_Charge:InvokeServer({[4] = t})
-                    RF_Charge:InvokeServer({[4] = t})
-                    RF_Request:InvokeServer(t, t, t)
-                end)
+            pcall(function()
+                local t = os.clock()
+                RF_Charge:InvokeServer({[4] = t})
+                RF_Charge:InvokeServer({[4] = t})
+                RF_Charge:InvokeServer({[4] = t})
+                RF_Request:InvokeServer(t, t, t)
             end)
             
-            -- Wait for complete delay
-            local elapsed = 0
-            while elapsed < CompleteDelay do
-                task.wait(0.05)
-                elapsed = elapsed + 0.05
-                
-                -- Check stop request tapi jangan stop dulu
-                if shouldStop then
-                    print("[Auto Fish] Stop requested, will finish this cycle first...")
-                end
+            -- Wait for complete delay (tunggu ikan bisa di-catch)
+            task.wait(CompleteDelay)
+            
+            -- Check jika ada stop request di tengah delay
+            if shouldStop then
+                print("[Auto Fish] Stop requested, will finish this cycle first...")
             end
             
-            -- STEP 3: Complete fishing (OPTIMIZED - parallel)
-            task.spawn(function()
-                pcall(function()
-                    RF_Complete:InvokeServer()
-                    RF_Complete:InvokeServer()
-                end)
+            -- STEP 3: Complete fishing
+            pcall(function()
+                RF_Complete:InvokeServer()
+                RF_Complete:InvokeServer()
             end)
             
             hasCasted = false
             
-            -- Check jika ada stop request SETELAH complete
+            -- Check SETELAH complete apakah ada stop request
             if shouldStop then
                 print("[Auto Fish] Cycle complete, stopping now...")
                 break
             end
             
-            -- No extra delay - langsung loop lagi
+            -- Small delay before next loop (anti spam)
+            task.wait(0.001)
         end
         
         print("[Auto Fish] Loop ended")
@@ -213,8 +206,8 @@ local FarmInfo = FarmTab:Section({
 })
 
 FarmInfo:Paragraph({
-    Title = "Optimized System",
-    Desc = "• Fast parallel execution\n• Safe stop (finishes current cycle)\n• No unnecessary delays\n• Adjustable complete timing"
+    Title = "System Flow",
+    Desc = "1. Cast fishing rod (Step 1-2)\n2. Wait for Complete Delay\n3. Complete fishing (Step 3)\n4. Repeat\n\nSafe stop: Waits for complete before stopping!"
 })
 
 FarmTab:Divider()
@@ -865,5 +858,5 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded - Optimized & Fast!")
-print("[INFO] Safe stop: finishes current cycle before stopping")
+print("[KREINXY] Script loaded - Perfect Balance!")
+print("[INFO] Original speed + Safe stop system")
