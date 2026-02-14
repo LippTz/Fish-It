@@ -46,7 +46,7 @@ local Net = ReplicatedStorage
 local RF_Charge   = Net:WaitForChild("RF/ChargeFishingRod")
 local RF_Request  = Net:WaitForChild("RF/RequestFishingMinigameStarted")
 local RF_Cancel   = Net:WaitForChild("RF/CancelFishingInputs")
-local RF_Complete = Net:WaitForChild("RF/CatchFishCompleted")  -- FIXED: Pakai RF bukan RE
+local RF_Complete = Net:WaitForChild("RF/CatchFishCompleted")
 local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
 local RF_Weather  = Net:WaitForChild("RF/PurchaseWeatherEvent")
 
@@ -89,6 +89,8 @@ local retryCount = 0
 -- FORCE FUNCTIONS (FIXED)
 --====================================
 local function ForceStep123()
+    if not running then return false end -- FIXED: Check running state
+    
     local success = false
     
     task.spawn(function()
@@ -117,7 +119,8 @@ local function ForceStep123()
 end
 
 local function ForceStep4()
-    -- FIXED: Pakai InvokeServer bukan FireServer
+    if not running then return end -- FIXED: Check running state
+    
     task.spawn(function()
         pcall(function()
             RF_Complete:InvokeServer()
@@ -128,7 +131,6 @@ local function ForceStep4()
 end
 
 local function ForceCancel()
-    -- FIXED: Pakai InvokeServer bukan FireServer
     task.spawn(function()
         pcall(function()
             RF_Complete:InvokeServer()
@@ -138,9 +140,10 @@ local function ForceCancel()
 end
 
 --====================================
--- LOOP SYSTEM
+-- LOOP SYSTEM (FIXED STOP MECHANISM)
 --====================================
 local function StartLoop()
+    -- FIXED: Cancel existing loop first
     if loopThread then 
         task.cancel(loopThread)
         loopThread = nil
@@ -151,7 +154,13 @@ local function StartLoop()
     retryCount = 0
 
     loopThread = task.spawn(function()
-        while running do
+        while running do -- FIXED: Check running in while loop
+            -- FIXED: Double check running state
+            if not running then
+                warn("[Blatant] Loop stopped - running is false")
+                break
+            end
+            
             local now = os.clock()
             local elapsed = now - lastStepTime
 
@@ -196,34 +205,45 @@ local function StartLoop()
             task.wait(TickRate)
         end
         
+        -- FIXED: Always call cancel when loop ends
+        warn("[Blatant] Loop ended - calling ForceCancel")
         ForceCancel()
     end)
 end
 
 --====================================
--- UI CONTROLS
+-- UI CONTROLS (FIXED STOP LOGIC)
 --====================================
 BlatantMain:Toggle({
     Title = "Blatant Fishing",
     Value = false,
     Callback = function(v)
         running = v
+        
         if v then
+            -- START
             print("[Blatant] STARTING...")
             StartLoop()
         else
+            -- STOP (FIXED)
             print("[Blatant] STOPPING...")
+            running = false -- Set running to false FIRST
             phase = "IDLE"
             
+            -- Cancel loop thread immediately
+            if loopThread then
+                task.cancel(loopThread)
+                loopThread = nil
+                warn("[Blatant] Loop thread cancelled")
+            end
+            
+            -- Call cancel multiple times to ensure stop
             task.spawn(function()
-                ForceCancel()
-                task.wait(0.2)
-                ForceCancel()
-                
-                if loopThread then
-                    task.cancel(loopThread)
-                    loopThread = nil
+                for i = 1, 3 do
+                    ForceCancel()
+                    task.wait(0.1)
                 end
+                print("[Blatant] STOPPED successfully!")
             end)
         end
     end
@@ -296,7 +316,7 @@ local Locations = {
     ["Christmas Cafe"] = CFrame.new(580, -581, 8930),
     ["Coral"] = CFrame.new(-3029, 3, 2260),
     ["Kohana"] = CFrame.new(-635, 16, 603),
-    ["Volcano"] = CFrame.new(-597, 59, 106),
+    ["Volcano"] = CFrame.new(-597, 65, 106),
     ["Esetoric Depth"] = CFrame.new(3203, -1303, 1415),
     ["Sisyphus Statue"] = CFrame.new(-3712, -135, -1013),
     ["Treasure"] = CFrame.new(-3566, -279, -1681),
@@ -600,7 +620,6 @@ MiscSection:Button({
             Terrain.WaterWaveSpeed = 0
         end
         
-        -- FIXED: Dynamic player reference
         task.spawn(function()
             for i = 1, 60 do
                 if LocalPlayer then
@@ -828,9 +847,8 @@ MiscTab:Divider()
 -- OVERHEAD TABLE (FIXED - SAFE WRAP)
 --====================================
 task.spawn(function()
-    task.wait(2) -- Wait for character to fully load
+    task.wait(2)
     pcall(function()
-        -- FIXED: Dynamic player reference
         local targetChar = workspace.Characters:FindFirstChild(LocalPlayer.Name)
         if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
             local hrp = targetChar.HumanoidRootPart
@@ -878,4 +896,4 @@ task.spawn(function()
 end)
 
 print("[KREINXY] Script loaded successfully!")
-print("[INFO] All errors fixed - ready to use!")
+print("[INFO] Toggle stop mechanism fixed!")
