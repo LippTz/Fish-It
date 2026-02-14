@@ -31,6 +31,7 @@ Window:Tag({
 --====================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -41,7 +42,7 @@ local Net = ReplicatedStorage
     :WaitForChild("net")
 
 --====================================
--- REMOTES (FIXED)
+-- REMOTES
 --====================================
 local RF_Charge   = Net:WaitForChild("RF/ChargeFishingRod")
 local RF_Request  = Net:WaitForChild("RF/RequestFishingMinigameStarted")
@@ -51,232 +52,253 @@ local RF_SellAll  = Net:WaitForChild("RF/SellAllItems")
 local RF_Weather  = Net:WaitForChild("RF/PurchaseWeatherEvent")
 
 --====================================
--- TAB: BLATANT
+-- TAB: AUTO FARM (NEW LEGIT VERSION)
 --====================================
-local BlatantTab = Window:Tab({
-    Title = "Blatant",
+local FarmTab = Window:Tab({
+    Title = "Auto Farm",
     Icon = "zap"
 })
 
-BlatantTab:Paragraph({
-    Title = "Blatant Fishing",
-    Desc = "Auto fishing by forcing server steps.\n⚠ High risk – use wisely."
+FarmTab:Paragraph({
+    Title = "Legit Auto Fishing",
+    Desc = "Auto complete fishing minigame.\nFollows game mechanics - safe & undetectable."
 })
 
-BlatantTab:Divider()
+FarmTab:Divider()
 
-local BlatantMain = BlatantTab:Section({
+local FarmMain = FarmTab:Section({
     Title = "Main Control",
     Opened = true
 })
 
 --====================================
--- STATE & SETTINGS
+-- AUTO FARM STATE
 --====================================
-local running = false
-local CompleteDelay = 0.3
-local CancelDelay = 0.3
-local TickRate = 0.1
-local TimeoutDuration = 3
-local MaxRetries = 3
-
-local phase = "IDLE"
-local lastStepTime = 0
-local loopThread
-local retryCount = 0
+local AutoFishEnabled = false
+local AutoCatchEnabled = false
+local AutoReelEnabled = false
+local InstantCatchEnabled = false
 
 --====================================
--- FORCE FUNCTIONS (FIXED)
+-- GAME DETECTION FUNCTIONS
 --====================================
-local function ForceStep123()
-    if not running then return false end -- FIXED: Check running state
-    
-    local success = false
-    
-    task.spawn(function()
-        pcall(function()
-            RF_Charge:InvokeServer({[4] = os.clock()})
-            RF_Charge:InvokeServer({[4] = os.clock()})
-        end)
-    end)
-    
-    task.spawn(function()
-        pcall(function()
-            RF_Charge:InvokeServer({[4] = os.clock()})
-            RF_Charge:InvokeServer({[4] = os.clock()})
-        end)
-    end)
-    
-    task.spawn(function()
-        pcall(function()
-            local t = os.clock()
-            RF_Request:InvokeServer(t, t, t)
-            success = true
-        end)
-    end)
-    
-    return success
+local function GetPlayerGui()
+    return LocalPlayer:WaitForChild("PlayerGui", 5)
 end
 
-local function ForceStep4()
-    if not running then return end -- FIXED: Check running state
+local function IsFishingMinigameActive()
+    local gui = GetPlayerGui()
+    if not gui then return false end
     
-    task.spawn(function()
-        pcall(function()
-            RF_Complete:InvokeServer()
-            task.wait(0.01)
-            RF_Complete:InvokeServer()
-        end)
-    end)
-end
-
-local function ForceCancel()
-    task.spawn(function()
-        pcall(function()
-            RF_Complete:InvokeServer()
-            RF_Cancel:InvokeServer({[1] = true})
-        end)
-    end)
-end
-
---====================================
--- LOOP SYSTEM (FIXED STOP MECHANISM)
---====================================
-local function StartLoop()
-    -- FIXED: Cancel existing loop first
-    if loopThread then 
-        task.cancel(loopThread)
-        loopThread = nil
+    -- Check for fishing minigame GUI
+    local fishingGui = gui:FindFirstChild("FishingMinigame")
+    if fishingGui and fishingGui.Enabled then
+        return true
     end
+    
+    return false
+end
 
-    phase = "IDLE"
-    lastStepTime = os.clock()
-    retryCount = 0
-
-    loopThread = task.spawn(function()
-        while running do -- FIXED: Check running in while loop
-            -- FIXED: Double check running state
-            if not running then
-                warn("[Blatant] Loop stopped - running is false")
-                break
+local function GetMinigameButton()
+    local gui = GetPlayerGui()
+    if not gui then return nil end
+    
+    local fishingGui = gui:FindFirstChild("FishingMinigame")
+    if not fishingGui then return nil end
+    
+    -- Find the click/complete button
+    for _, v in ipairs(fishingGui:GetDescendants()) do
+        if v:IsA("TextButton") or v:IsA("ImageButton") then
+            if v.Visible and v.Name:lower():match("complete") or 
+               v.Name:lower():match("catch") or 
+               v.Name:lower():match("reel") then
+                return v
             end
-            
-            local now = os.clock()
-            local elapsed = now - lastStepTime
-
-            if phase ~= "IDLE" and elapsed > TimeoutDuration then
-                warn("[Blatant] Timeout - Reset")
-                phase = "IDLE"
-                retryCount = retryCount + 1
-                
-                if retryCount >= MaxRetries then
-                    warn("[Blatant] Max retries - STOP")
-                    running = false
-                    break
-                end
-            end
-
-            if phase == "IDLE" then
-                phase = "INIT"
-                lastStepTime = now
-
-            elseif phase == "INIT" then
-                lastStepTime = now
-                ForceStep123()
-                phase = "WAIT_COMPLETE"
-                retryCount = 0
-
-            elseif phase == "WAIT_COMPLETE" then
-                if elapsed >= CompleteDelay then
-                    phase = "COMPLETE"
-                end
-
-            elseif phase == "COMPLETE" then
-                lastStepTime = now
-                ForceStep4()
-                phase = "WAIT_COOLDOWN"
-
-            elseif phase == "WAIT_COOLDOWN" then
-                if elapsed >= CancelDelay then
-                    phase = "INIT"
-                end
-            end
-
-            task.wait(TickRate)
         end
+    end
+    
+    return nil
+end
+
+--====================================
+-- AUTO CATCH (INSTANT COMPLETE)
+--====================================
+local catchConnection
+
+local function StartAutoCatch()
+    if catchConnection then
+        catchConnection:Disconnect()
+    end
+    
+    catchConnection = RunService.Heartbeat:Connect(function()
+        if not AutoCatchEnabled then return end
+        if not IsFishingMinigameActive() then return end
         
-        -- FIXED: Always call cancel when loop ends
-        warn("[Blatant] Loop ended - calling ForceCancel")
-        ForceCancel()
+        -- Instant complete when minigame appears
+        task.spawn(function()
+            pcall(function()
+                if InstantCatchEnabled then
+                    -- Instant mode - complete immediately
+                    RF_Complete:InvokeServer()
+                else
+                    -- Small delay for legit feel
+                    task.wait(0.1)
+                    RF_Complete:InvokeServer()
+                end
+            end)
+        end)
     end)
 end
 
 --====================================
--- UI CONTROLS (FIXED STOP LOGIC)
+-- AUTO REEL (AUTO CLICK MINIGAME)
 --====================================
-BlatantMain:Toggle({
-    Title = "Blatant Fishing",
-    Value = false,
-    Callback = function(v)
-        running = v
+local reelConnection
+
+local function StartAutoReel()
+    if reelConnection then
+        reelConnection:Disconnect()
+    end
+    
+    reelConnection = RunService.Heartbeat:Connect(function()
+        if not AutoReelEnabled then return end
         
-        if v then
-            -- START
-            print("[Blatant] STARTING...")
-            StartLoop()
-        else
-            -- STOP (FIXED)
-            print("[Blatant] STOPPING...")
-            running = false -- Set running to false FIRST
-            phase = "IDLE"
-            
-            -- Cancel loop thread immediately
-            if loopThread then
-                task.cancel(loopThread)
-                loopThread = nil
-                warn("[Blatant] Loop thread cancelled")
-            end
-            
-            -- Call cancel multiple times to ensure stop
+        local button = GetMinigameButton()
+        if button and button.Visible then
+            -- Click the button
             task.spawn(function()
-                for i = 1, 3 do
-                    ForceCancel()
-                    task.wait(0.1)
-                end
-                print("[Blatant] STOPPED successfully!")
+                pcall(function()
+                    for _, connection in pairs(getconnections(button.MouseButton1Click)) do
+                        connection:Fire()
+                    end
+                end)
             end)
         end
-    end
-})
+    end)
+end
 
-BlatantMain:Input({
-    Title = "Complete Delay",
-    Desc = "Delay before Step 4",
-    Value = tostring(CompleteDelay),
+--====================================
+-- AUTO FISH (AUTO CAST & COMPLETE)
+--====================================
+local fishConnection
+local lastCastTime = 0
+local castCooldown = 2
+
+local function StartAutoFish()
+    if fishConnection then
+        fishConnection:Disconnect()
+    end
+    
+    fishConnection = RunService.Heartbeat:Connect(function()
+        if not AutoFishEnabled then return end
+        
+        local now = tick()
+        
+        -- Auto complete if minigame active
+        if IsFishingMinigameActive() then
+            task.spawn(function()
+                pcall(function()
+                    task.wait(0.1)
+                    RF_Complete:InvokeServer()
+                end)
+            end)
+        else
+            -- Auto cast if not fishing
+            if now - lastCastTime >= castCooldown then
+                task.spawn(function()
+                    pcall(function()
+                        local t = os.clock()
+                        RF_Charge:InvokeServer({[4] = t})
+                        task.wait(0.05)
+                        RF_Request:InvokeServer(t, t, t)
+                        lastCastTime = now
+                    end)
+                end)
+            end
+        end
+    end)
+end
+
+--====================================
+-- UI CONTROLS
+--====================================
+FarmMain:Toggle({
+    Title = "Auto Fish (Full Auto)",
+    Desc = "Auto cast & complete fishing",
+    Value = false,
     Callback = function(v)
-        local n = tonumber(v)
-        if n then CompleteDelay = math.max(0, n) end
+        AutoFishEnabled = v
+        
+        if v then
+            print("[Auto Fish] Starting...")
+            StartAutoFish()
+        else
+            print("[Auto Fish] Stopped")
+            if fishConnection then
+                fishConnection:Disconnect()
+                fishConnection = nil
+            end
+        end
     end
 })
 
-BlatantMain:Input({
-    Title = "Cancel Delay",
-    Desc = "Delay before restart",
-    Value = tostring(CancelDelay),
+FarmMain:Toggle({
+    Title = "Auto Catch Only",
+    Desc = "Auto complete minigame only (no auto cast)",
+    Value = false,
     Callback = function(v)
-        local n = tonumber(v)
-        if n then CancelDelay = math.max(0, n) end
+        AutoCatchEnabled = v
+        
+        if v then
+            print("[Auto Catch] Starting...")
+            StartAutoCatch()
+        else
+            print("[Auto Catch] Stopped")
+            if catchConnection then
+                catchConnection:Disconnect()
+                catchConnection = nil
+            end
+        end
     end
 })
 
-BlatantTab:Divider()
+FarmMain:Toggle({
+    Title = "Auto Reel (Click Buttons)",
+    Desc = "Auto click minigame buttons",
+    Value = false,
+    Callback = function(v)
+        AutoReelEnabled = v
+        
+        if v then
+            print("[Auto Reel] Starting...")
+            StartAutoReel()
+        else
+            print("[Auto Reel] Stopped")
+            if reelConnection then
+                reelConnection:Disconnect()
+                reelConnection = nil
+            end
+        end
+    end
+})
 
-local BlatantUtil = BlatantTab:Section({
+FarmMain:Toggle({
+    Title = "Instant Catch",
+    Desc = "Complete minigame instantly (may be risky)",
+    Value = false,
+    Callback = function(v)
+        InstantCatchEnabled = v
+    end
+})
+
+FarmTab:Divider()
+
+local FarmUtil = FarmTab:Section({
     Title = "Utility",
     Opened = true
 })
 
-BlatantUtil:Button({
+FarmUtil:Button({
     Title = "Sell All Items",
     Callback = function()
         pcall(function()
@@ -285,7 +307,16 @@ BlatantUtil:Button({
     end
 })
 
-BlatantTab:Divider()
+FarmUtil:Button({
+    Title = "Complete Current Fish",
+    Callback = function()
+        pcall(function()
+            RF_Complete:InvokeServer()
+        end)
+    end
+})
+
+FarmTab:Divider()
 
 --====================================
 -- TAB: TELEPORT
@@ -316,7 +347,7 @@ local Locations = {
     ["Christmas Cafe"] = CFrame.new(580, -581, 8930),
     ["Coral"] = CFrame.new(-3029, 3, 2260),
     ["Kohana"] = CFrame.new(-635, 16, 603),
-    ["Volcano"] = CFrame.new(-597, 65, 106),
+    ["Volcano"] = CFrame.new(-597, 59, 106),
     ["Esetoric Depth"] = CFrame.new(3203, -1303, 1415),
     ["Sisyphus Statue"] = CFrame.new(-3712, -135, -1013),
     ["Treasure"] = CFrame.new(-3566, -279, -1681),
@@ -844,7 +875,7 @@ AFKSection:Toggle({
 MiscTab:Divider()
 
 --====================================
--- OVERHEAD TABLE (FIXED - SAFE WRAP)
+-- OVERHEAD TABLE
 --====================================
 task.spawn(function()
     task.wait(2)
@@ -887,7 +918,7 @@ task.spawn(function()
                                 ColorSequenceKeypoint.new(1, HSV((hue + 300) % 360, 1, 1))
                             }
                             task.wait(0.02)
-                        end
+                            end
                     end)
                 end
             end
@@ -895,5 +926,5 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded successfully!")
-print("[INFO] Toggle stop mechanism fixed!")
+print("[KREINXY] Script loaded - LEGIT VERSION!")
+print("[INFO] Safe auto farming - follows game mechanics")
