@@ -18,7 +18,7 @@ local Window = WindUI:CreateWindow({
     SideBarWidth = 200,
     KeySystem = false,
     -- TOGGLE GUI KEYBIND
-    Key = Enum.KeyCode.RightControl
+    Key = Enum.KeyCode.LeftAlt
 })
 
 Window:Tag({
