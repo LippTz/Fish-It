@@ -74,7 +74,7 @@ local FarmMain = FarmTab:Section({
 -- STATE & SETTINGS
 --====================================
 local AutoFishEnabled = false
-local CompleteDelay = 0.4
+local CompleteDelay = 0.35
 local loopThread
 local shouldStop = false
 local hasCasted = false
@@ -98,7 +98,6 @@ local function StartAutoFish()
             pcall(function()
                 local t = os.clock()
                 -- Semua remote dipanggil instant tanpa delay
-                RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Request:InvokeServer(t, t, t)
