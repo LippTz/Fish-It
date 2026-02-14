@@ -60,7 +60,7 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Auto Fishing System",
-    Desc = "Simple auto fishing with adjustable delay.\nNo spam, clean & efficient."
+    Desc = "Optimized auto fishing with safe stop.\nFast & efficient."
 })
 
 FarmTab:Divider()
@@ -76,10 +76,11 @@ local FarmMain = FarmTab:Section({
 local AutoFishEnabled = false
 local CompleteDelay = 0.4
 local loopThread
-local isCompleting = false -- Track if complete is running
+local shouldStop = false -- Flag untuk stop request
+local hasCasted = false -- Track apakah sudah cast
 
 --====================================
--- SIMPLE AUTO FARM LOOP
+-- OPTIMIZED AUTO FARM LOOP
 --====================================
 local function StartAutoFish()
     if loopThread then
@@ -87,60 +88,52 @@ local function StartAutoFish()
         loopThread = nil
     end
 
+    shouldStop = false
+    hasCasted = false
+
     loopThread = task.spawn(function()
-        while AutoFishEnabled do
-            -- Check if still enabled
-            if not AutoFishEnabled then
-                print("[Auto Fish] Stop requested, waiting for complete...")
+        while AutoFishEnabled and not shouldStop do
+            -- STEP 1-2: Cast fishing rod (OPTIMIZED)
+            hasCasted = true
+            task.spawn(function()
+                pcall(function()
+                    local t = os.clock()
+                    RF_Charge:InvokeServer({[4] = t})
+                    RF_Charge:InvokeServer({[4] = t})
+                    RF_Charge:InvokeServer({[4] = t})
+                    RF_Request:InvokeServer(t, t, t)
+                end)
+            end)
+            
+            -- Wait for complete delay
+            local elapsed = 0
+            while elapsed < CompleteDelay do
+                task.wait(0.05)
+                elapsed = elapsed + 0.05
                 
-                -- WAIT for complete to finish if it's running
-                local waitTime = 0
-                while isCompleting and waitTime < 2 do
-                    task.wait(0.1)
-                    waitTime = waitTime + 0.1
+                -- Check stop request tapi jangan stop dulu
+                if shouldStop then
+                    print("[Auto Fish] Stop requested, will finish this cycle first...")
                 end
-                
-                print("[Auto Fish] Safe to stop now")
+            end
+            
+            -- STEP 3: Complete fishing (OPTIMIZED - parallel)
+            task.spawn(function()
+                pcall(function()
+                    RF_Complete:InvokeServer()
+                    RF_Complete:InvokeServer()
+                end)
+            end)
+            
+            hasCasted = false
+            
+            -- Check jika ada stop request SETELAH complete
+            if shouldStop then
+                print("[Auto Fish] Cycle complete, stopping now...")
                 break
             end
             
-            -- STEP 1-2: Cast fishing rod
-            pcall(function()
-                local t = os.clock()
-                RF_Charge:InvokeServer({[4] = t})
-                RF_Charge:InvokeServer({[4] = t})
-                RF_Charge:InvokeServer({[4] = t})
-                RF_Request:InvokeServer(t, t, t)
-            end)
-            
-            -- Wait for complete delay (tunggu ikan bisa di-catch)
-            task.wait(CompleteDelay)
-            
-            -- Check again before completing
-            if not AutoFishEnabled then
-                print("[Auto Fish] Stop requested, waiting for complete...")
-                
-                -- WAIT for complete to finish if it's running
-                local waitTime = 0
-                while isCompleting and waitTime < 2 do
-                    task.wait(0.1)
-                    waitTime = waitTime + 0.1
-                end
-                
-                print("[Auto Fish] Safe to stop now")
-                break
-            end
-            
-            -- STEP 3: Complete fishing (with flag)
-            isCompleting = true -- Mark as completing
-            pcall(function()
-                RF_Complete:InvokeServer()
-                RF_Complete:InvokeServer()
-            end)
-            isCompleting = false -- Mark as done
-            
-            -- Small delay before next loop (anti spam)
-            task.wait(0.001)
+            -- No extra delay - langsung loop lagi
         end
         
         print("[Auto Fish] Loop ended")
@@ -160,17 +153,20 @@ FarmMain:Toggle({
         if v then
             print("[Auto Fish] Starting...")
             print("[Auto Fish] Complete Delay:", CompleteDelay, "seconds")
-            isCompleting = false
+            shouldStop = false
+            hasCasted = false
             StartAutoFish()
         else
-            print("[Auto Fish] Stopping...")
+            print("[Auto Fish] Stop requested...")
+            
+            -- Set flag untuk stop
+            shouldStop = true
             AutoFishEnabled = false
             
-            -- Wait for complete to finish before cleanup
+            -- Tunggu sampai cycle selesai (max 5 detik)
             task.spawn(function()
                 local waitTime = 0
-                while isCompleting and waitTime < 3 do
-                    print("[Auto Fish] Waiting for complete to finish...")
+                while hasCasted and waitTime < 5 do
                     task.wait(0.1)
                     waitTime = waitTime + 0.1
                 end
@@ -186,6 +182,9 @@ FarmMain:Toggle({
                 pcall(function()
                     RF_Cancel:InvokeServer({[1] = true})
                 end)
+                
+                shouldStop = false
+                hasCasted = false
                 
                 print("[Auto Fish] Stopped safely!")
             end)
@@ -214,8 +213,8 @@ local FarmInfo = FarmTab:Section({
 })
 
 FarmInfo:Paragraph({
-    Title = "System Flow",
-    Desc = "1. Cast fishing rod (Step 1-2)\n2. Wait for Complete Delay\n3. Complete fishing (Step 3)\n4. Repeat\n\nSafe stop: Waits for complete before stopping!"
+    Title = "Optimized System",
+    Desc = "• Fast parallel execution\n• Safe stop (finishes current cycle)\n• No unnecessary delays\n• Adjustable complete timing"
 })
 
 FarmTab:Divider()
@@ -239,6 +238,7 @@ FarmUtil:Button({
     Title = "Complete Current Fish",
     Callback = function()
         pcall(function()
+            RF_Complete:InvokeServer()
             RF_Complete:InvokeServer()
             print("[Utility] Completed current fish!")
         end)
@@ -865,5 +865,5 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded - Safe Stop Version!")
-print("[INFO] Toggle OFF waits for complete to finish first")
+print("[KREINXY] Script loaded - Optimized & Fast!")
+print("[INFO] Safe stop: finishes current cycle before stopping")
