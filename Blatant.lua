@@ -76,6 +76,7 @@ local FarmMain = FarmTab:Section({
 local AutoFishEnabled = false
 local CompleteDelay = 0.4
 local loopThread
+local isCompleting = false -- Track if complete is running
 
 --====================================
 -- SIMPLE AUTO FARM LOOP
@@ -90,7 +91,16 @@ local function StartAutoFish()
         while AutoFishEnabled do
             -- Check if still enabled
             if not AutoFishEnabled then
-                print("[Auto Fish] Stopped by toggle")
+                print("[Auto Fish] Stop requested, waiting for complete...")
+                
+                -- WAIT for complete to finish if it's running
+                local waitTime = 0
+                while isCompleting and waitTime < 2 do
+                    task.wait(0.1)
+                    waitTime = waitTime + 0.1
+                end
+                
+                print("[Auto Fish] Safe to stop now")
                 break
             end
             
@@ -108,14 +118,26 @@ local function StartAutoFish()
             
             -- Check again before completing
             if not AutoFishEnabled then
+                print("[Auto Fish] Stop requested, waiting for complete...")
+                
+                -- WAIT for complete to finish if it's running
+                local waitTime = 0
+                while isCompleting and waitTime < 2 do
+                    task.wait(0.1)
+                    waitTime = waitTime + 0.1
+                end
+                
+                print("[Auto Fish] Safe to stop now")
                 break
             end
             
-            -- STEP 3: Complete fishing
+            -- STEP 3: Complete fishing (with flag)
+            isCompleting = true -- Mark as completing
             pcall(function()
                 RF_Complete:InvokeServer()
                 RF_Complete:InvokeServer()
             end)
+            isCompleting = false -- Mark as done
             
             -- Small delay before next loop (anti spam)
             task.wait(0.001)
@@ -138,24 +160,35 @@ FarmMain:Toggle({
         if v then
             print("[Auto Fish] Starting...")
             print("[Auto Fish] Complete Delay:", CompleteDelay, "seconds")
+            isCompleting = false
             StartAutoFish()
         else
             print("[Auto Fish] Stopping...")
             AutoFishEnabled = false
             
-            if loopThread then
-                task.cancel(loopThread)
-                loopThread = nil
-            end
-            
-            -- Cleanup
+            -- Wait for complete to finish before cleanup
             task.spawn(function()
+                local waitTime = 0
+                while isCompleting and waitTime < 3 do
+                    print("[Auto Fish] Waiting for complete to finish...")
+                    task.wait(0.1)
+                    waitTime = waitTime + 0.1
+                end
+                
+                -- Cancel loop thread
+                if loopThread then
+                    task.cancel(loopThread)
+                    loopThread = nil
+                end
+                
+                -- Cleanup
+                task.wait(0.1)
                 pcall(function()
                     RF_Cancel:InvokeServer({[1] = true})
                 end)
+                
+                print("[Auto Fish] Stopped safely!")
             end)
-            
-            print("[Auto Fish] Stopped!")
         end
     end
 })
@@ -182,7 +215,7 @@ local FarmInfo = FarmTab:Section({
 
 FarmInfo:Paragraph({
     Title = "System Flow",
-    Desc = "1. Cast fishing rod (Step 1-2)\n2. Wait for Complete Delay\n3. Complete fishing (Step 3)\n4. Repeat\n\nAdjust delay based on fishing speed!"
+    Desc = "1. Cast fishing rod (Step 1-2)\n2. Wait for Complete Delay\n3. Complete fishing (Step 3)\n4. Repeat\n\nSafe stop: Waits for complete before stopping!"
 })
 
 FarmTab:Divider()
@@ -832,5 +865,5 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded - Simple & Clean!")
-print("[INFO] Flow: Cast → Wait → Complete → Repeat")
+print("[KREINXY] Script loaded - Safe Stop Version!")
+print("[INFO] Toggle OFF waits for complete to finish first")
