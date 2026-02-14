@@ -74,8 +74,8 @@ local BlatantMain = BlatantTab:Section({
 -- STATE & SETTINGS
 --====================================
 local running = false
-local CompleteDelay = 0.2
-local CancelDelay = 0.1
+local CompleteDelay = 0.3
+local CancelDelay = 0.3
 local TickRate = 0.01
 local TimeoutDuration = 3
 local MaxRetries = 3
@@ -94,11 +94,13 @@ local function ForceStep123()
     task.spawn(function()
         pcall(function()
             RF_Charge:InvokeServer({[4] = os.clock()})
+            RF_Charge:InvokeServer({[4] = os.clock()})
         end)
     end)
     
     task.spawn(function()
         pcall(function()
+            RF_Charge:InvokeServer({[4] = os.clock()})
             RF_Charge:InvokeServer({[4] = os.clock()})
         end)
     end)
