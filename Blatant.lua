@@ -101,7 +101,6 @@ local function StartAutoFish()
                 local t = os.clock()
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
-                RF_Charge:InvokeServer({[4] = t})
                 RF_Request:InvokeServer(t, t, t)
             end)
             
@@ -115,7 +114,6 @@ local function StartAutoFish()
             
             -- STEP 3: Complete fishing (INSTANT)
             pcall(function()
-                RF_Complete:InvokeServer()
                 RF_Complete:InvokeServer()
             end)
             
@@ -156,8 +154,8 @@ FarmMain:Toggle({
             task.spawn(function()
                 local waitTime = 0
                 while hasCasted and waitTime < 5 do
-                    task.wait(0.1)
-                    waitTime = waitTime + 0.1
+                    task.wait(0.01)
+                    waitTime = waitTime + 0.01
                 end
                 
                 if loopThread then
