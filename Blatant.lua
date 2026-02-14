@@ -74,8 +74,8 @@ local BlatantMain = BlatantTab:Section({
 -- STATE & SETTINGS
 --====================================
 local running = false
-local CompleteDelay = 0.71
-local CancelDelay = 0.32
+local CompleteDelay = 0.2
+local CancelDelay = 0.1
 local TickRate = 0.01  -- Loop tick (bukan delay antar remote)
 local TimeoutDuration = 3
 local MaxRetries = 3
@@ -94,7 +94,7 @@ local function ForceStep123()
     -- Jalankan SEMUA remote SEKALIGUS tanpa delay
     task.spawn(function()
         pcall(function()
-            RF_Cancel:InvokeServer({[1] = true})
+            RF_Charge:InvokeServer({[4] = os.clock()})
         end)
     end)
     
@@ -129,7 +129,7 @@ local function ForceCancel()
     task.spawn(function()
         pcall(function()
             RE_Complete:FireServer()
-            RF_Cancel:InvokeServer()
+            RF_Cancel:InvokeServer({[1] = true})
         end)
     end)
 end
