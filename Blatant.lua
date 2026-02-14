@@ -245,19 +245,19 @@ local LocationSection = TeleportTab:Section({
 })
 
 local Locations = {
-    ["Fisherman Island"] = CFrame.new(34, 26, 2776),
-    ["Jungle"] = CFrame.new(1483, 11, -300),
-    ["Ancient Ruin"] = CFrame.new(6085, -586, 4639),
-    ["Crater Island"] = CFrame.new(1013, 23, 5079),
-    ["Christmas Island"] = CFrame.new(1135, 24, 1563),
-    ["Christmas Cafe"] = CFrame.new(580, -581, 8930),
-    ["Coral"] = CFrame.new(-3029, 3, 2260),
-    ["Kohana"] = CFrame.new(-635, 16, 603),
-    ["Volcano"] = CFrame.new(-597, 59, 106),
-    ["Esetoric Depth"] = CFrame.new(3203, -1303, 1415),
-    ["Sisyphus Statue"] = CFrame.new(-3712, -135, -1013),
-    ["Treasure"] = CFrame.new(-3566, -279, -1681),
-    ["Tropical"] = CFrame.new(-2093, 6, 3699),
+    ["Fisherman Island"] = CFrame.new(34, 28, 2776),
+    ["Jungle"] = CFrame.new(1483, 13, -300),
+    ["Ancient Ruin"] = CFrame.new(6085, -584, 4639),
+    ["Crater Island"] = CFrame.new(1013, 25, 5079),
+    ["Christmas Island"] = CFrame.new(1135, 26, 1563),
+    ["Christmas Cafe"] = CFrame.new(580, -579, 8930),
+    ["Coral"] = CFrame.new(-3029, 5, 2260),
+    ["Kohana"] = CFrame.new(-635, 18, 603),
+    ["Volcano"] = CFrame.new(-597, 65, 106),
+    ["Esetoric Depth"] = CFrame.new(3203, -1301, 1415),
+    ["Sisyphus Statue"] = CFrame.new(-3712, -133, -1013),
+    ["Treasure"] = CFrame.new(-3566, -277, -1681),
+    ["Tropical"] = CFrame.new(-2093, 8, 3699),
 }
 
 local SelectedLocation = "Fisherman Island"
