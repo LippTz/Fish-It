@@ -60,7 +60,7 @@ local FarmTab = Window:Tab({
 
 FarmTab:Paragraph({
     Title = "Auto Fishing System",
-    Desc = "Simple auto fishing with adjustable delay.\nNo spam, clean & efficient."
+    Desc = "Instant remote execution - testing speed.\nSafe stop system included."
 })
 
 FarmTab:Divider()
@@ -80,7 +80,7 @@ local shouldStop = false
 local hasCasted = false
 
 --====================================
--- AUTO FARM LOOP (ORIGINAL SPEED + NEW STOP)
+-- INSTANT REMOTE EXECUTION
 --====================================
 local function StartAutoFish()
     if loopThread then
@@ -93,10 +93,11 @@ local function StartAutoFish()
 
     loopThread = task.spawn(function()
         while AutoFishEnabled and not shouldStop do
-            -- STEP 1-2: Cast fishing rod (ORIGINAL - NO SPAM)
+            -- STEP 1-2: Cast fishing rod (INSTANT - NO DELAY)
             hasCasted = true
             pcall(function()
                 local t = os.clock()
+                -- Semua remote dipanggil instant tanpa delay
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
@@ -111,7 +112,7 @@ local function StartAutoFish()
                 print("[Auto Fish] Stop requested, will finish this cycle first...")
             end
             
-            -- STEP 3: Complete fishing
+            -- STEP 3: Complete fishing (INSTANT - NO DELAY)
             pcall(function()
                 RF_Complete:InvokeServer()
                 RF_Complete:InvokeServer()
@@ -125,8 +126,7 @@ local function StartAutoFish()
                 break
             end
             
-            -- Small delay before next loop (anti spam)
-            task.wait(0.001)
+            -- No delay - langsung loop ulang
         end
         
         print("[Auto Fish] Loop ended")
@@ -138,7 +138,7 @@ end
 --====================================
 FarmMain:Toggle({
     Title = "Auto Fishing",
-    Desc = "Auto cast & complete with delay",
+    Desc = "Instant remote execution",
     Value = false,
     Callback = function(v)
         AutoFishEnabled = v
@@ -146,6 +146,7 @@ FarmMain:Toggle({
         if v then
             print("[Auto Fish] Starting...")
             print("[Auto Fish] Complete Delay:", CompleteDelay, "seconds")
+            print("[Auto Fish] Remote execution: INSTANT (no delay)")
             shouldStop = false
             hasCasted = false
             StartAutoFish()
@@ -206,8 +207,8 @@ local FarmInfo = FarmTab:Section({
 })
 
 FarmInfo:Paragraph({
-    Title = "System Flow",
-    Desc = "1. Cast fishing rod (Step 1-2)\n2. Wait for Complete Delay\n3. Complete fishing (Step 3)\n4. Repeat\n\nSafe stop: Waits for complete before stopping!"
+    Title = "Speed Test Mode",
+    Desc = "• All remotes execute INSTANTLY\n• No delay between remote calls\n• Only delay: wait for fish to be catchable\n• Safe stop: waits for current cycle\n\nTest kecepatan remote execution!"
 })
 
 FarmTab:Divider()
@@ -694,7 +695,7 @@ MiscTab:Divider()
 --====================================
 -- HUD FPS + PING
 --====================================
-local HUD_Enabled = false
+local HUD_Enabled = true
 local HUDGui, HUDLabel
 
 local HUDSection = MiscTab:Section({
@@ -704,7 +705,7 @@ local HUDSection = MiscTab:Section({
 
 HUDSection:Toggle({
     Title = "Show FPS & Ping HUD",
-    Value = false,
+    Value = true,
     Callback = function(v)
         HUD_Enabled = v
 
@@ -858,5 +859,6 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded - Perfect Balance!")
-print("[INFO] Original speed + Safe stop system")
+print("[KREINXY] Script loaded - Speed Test Mode!")
+print("[INFO] All remotes execute INSTANTLY for maximum speed")
+print("[INFO] Safe stop system active")
