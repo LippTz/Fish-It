@@ -16,7 +16,9 @@ local Window = WindUI:CreateWindow({
     Theme = "Dark",
     Resizable = true,
     SideBarWidth = 200,
-    KeySystem = false
+    KeySystem = false,
+    -- TOGGLE GUI KEYBIND
+    Key = Enum.KeyCode.RightControl
 })
 
 Window:Tag({
@@ -74,7 +76,7 @@ local FarmMain = FarmTab:Section({
 -- STATE & SETTINGS
 --====================================
 local AutoFishEnabled = false
-local CompleteDelay = 0.35
+local CompleteDelay = 0.4
 local loopThread
 local shouldStop = false
 local hasCasted = false
@@ -97,21 +99,21 @@ local function StartAutoFish()
             hasCasted = true
             pcall(function()
                 local t = os.clock()
-                -- Semua remote dipanggil instant tanpa delay
+                RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Request:InvokeServer(t, t, t)
             end)
             
-            -- Wait for complete delay (tunggu ikan bisa di-catch)
+            -- Wait for complete delay
             task.wait(CompleteDelay)
             
-            -- Check jika ada stop request di tengah delay
+            -- Check stop request
             if shouldStop then
                 print("[Auto Fish] Stop requested, will finish this cycle first...")
             end
             
-            -- STEP 3: Complete fishing (INSTANT - NO DELAY)
+            -- STEP 3: Complete fishing (INSTANT)
             pcall(function()
                 RF_Complete:InvokeServer()
                 RF_Complete:InvokeServer()
@@ -119,13 +121,11 @@ local function StartAutoFish()
             
             hasCasted = false
             
-            -- Check SETELAH complete apakah ada stop request
+            -- Check after complete
             if shouldStop then
                 print("[Auto Fish] Cycle complete, stopping now...")
                 break
             end
-            
-            -- No delay - langsung loop ulang
         end
         
         print("[Auto Fish] Loop ended")
@@ -145,18 +145,14 @@ FarmMain:Toggle({
         if v then
             print("[Auto Fish] Starting...")
             print("[Auto Fish] Complete Delay:", CompleteDelay, "seconds")
-            print("[Auto Fish] Remote execution: INSTANT (no delay)")
             shouldStop = false
             hasCasted = false
             StartAutoFish()
         else
             print("[Auto Fish] Stop requested...")
-            
-            -- Set flag untuk stop
             shouldStop = true
             AutoFishEnabled = false
             
-            -- Tunggu sampai cycle selesai (max 5 detik)
             task.spawn(function()
                 local waitTime = 0
                 while hasCasted and waitTime < 5 do
@@ -164,13 +160,11 @@ FarmMain:Toggle({
                     waitTime = waitTime + 0.1
                 end
                 
-                -- Cancel loop thread
                 if loopThread then
                     task.cancel(loopThread)
                     loopThread = nil
                 end
                 
-                -- Cleanup
                 task.wait(0.1)
                 pcall(function()
                     RF_Cancel:InvokeServer({[1] = true})
@@ -207,7 +201,7 @@ local FarmInfo = FarmTab:Section({
 
 FarmInfo:Paragraph({
     Title = "Speed Test Mode",
-    Desc = "• All remotes execute INSTANTLY\n• No delay between remote calls\n• Only delay: wait for fish to be catchable\n• Safe stop: waits for current cycle\n\nTest kecepatan remote execution!"
+    Desc = "• All remotes execute INSTANTLY\n• No delay between remote calls\n• Only delay: wait for fish to be catchable\n• Safe stop: waits for current cycle\n\nPress RIGHT CTRL to toggle GUI!"
 })
 
 FarmTab:Divider()
@@ -694,7 +688,7 @@ MiscTab:Divider()
 --====================================
 -- HUD FPS + PING
 --====================================
-local HUD_Enabled = true
+local HUD_Enabled = false
 local HUDGui, HUDLabel
 
 local HUDSection = MiscTab:Section({
@@ -704,7 +698,7 @@ local HUDSection = MiscTab:Section({
 
 HUDSection:Toggle({
     Title = "Show FPS & Ping HUD",
-    Value = true,
+    Value = false,
     Callback = function(v)
         HUD_Enabled = v
 
@@ -807,6 +801,35 @@ AFKSection:Toggle({
 MiscTab:Divider()
 
 --====================================
+-- TAB: SETTINGS
+--====================================
+local SettingsTab = Window:Tab({
+    Title = "Settings",
+    Icon = "sliders"
+})
+
+local UISection = SettingsTab:Section({
+    Title = "UI Settings",
+    Opened = true
+})
+
+UISection:Paragraph({
+    Title = "Toggle GUI Keybind",
+    Desc = "Press RIGHT CTRL to show/hide GUI\n\nYou can change the keybind below."
+})
+
+UISection:Keybind({
+    Title = "Toggle GUI Key",
+    Default = Enum.KeyCode.RightControl,
+    Callback = function(key)
+        -- WindUI akan otomatis update keybind
+        print("[Settings] GUI toggle key changed to:", key.Name)
+    end
+})
+
+SettingsTab:Divider()
+
+--====================================
 -- OVERHEAD TABLE
 --====================================
 task.spawn(function()
@@ -858,6 +881,8 @@ task.spawn(function()
     end)
 end)
 
-print("[KREINXY] Script loaded - Speed Test Mode!")
-print("[INFO] All remotes execute INSTANTLY for maximum speed")
-print("[INFO] Safe stop system active")
+print("========================================")
+print("[KREINXY] Script loaded successfully!")
+print("[INFO] Press RIGHT CTRL to toggle GUI")
+print("[INFO] All features ready to use")
+print("========================================")
