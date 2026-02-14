@@ -74,7 +74,7 @@ local FarmMain = FarmTab:Section({
 -- STATE & SETTINGS
 --====================================
 local AutoFishEnabled = false
-local CompleteDelay = 0.5
+local CompleteDelay = 0.4
 local loopThread
 
 --====================================
@@ -99,6 +99,7 @@ local function StartAutoFish()
                 local t = os.clock()
                 RF_Charge:InvokeServer({[4] = t})
                 RF_Charge:InvokeServer({[4] = t})
+                RF_Charge:InvokeServer({[4] = t})
                 RF_Request:InvokeServer(t, t, t)
             end)
             
@@ -113,10 +114,11 @@ local function StartAutoFish()
             -- STEP 3: Complete fishing
             pcall(function()
                 RF_Complete:InvokeServer()
+                RF_Complete:InvokeServer()
             end)
             
             -- Small delay before next loop (anti spam)
-            task.wait(0.1)
+            task.wait(0.001)
         end
         
         print("[Auto Fish] Loop ended")
